@@ -92,6 +92,9 @@ export const BookmarksPage: React.FC = () => {
                             onDelete={(deletedId) =>
                                 setBookmarks((prev) => prev.filter((b) => b.id !== deletedId))
                             }
+                            onHide={(id) =>
+                                setBookmarks((prev) => prev.filter((b) => b.id !== id))
+                            }
                         />
                     ))}
 

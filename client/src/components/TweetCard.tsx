@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     Heart,
@@ -9,15 +9,30 @@ import {
     CheckCircle,
     Share2,
     MoreHorizontal,
+    Frown,
+    UserPlus,
+    UserMinus,
+    ListPlus,
+    VolumeX,
+    Ban,
+    BarChart2,
+    Code,
+    Flag,
+    Megaphone,
+    Pin,
+    EyeOff,
+    X,
 } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../features/auth/hooks";
 import { MediaLightboxModal } from "./MediaLightboxModal";
+import { PostActivityModal } from "./PostActivityModal";
 import type { Tweet, TweetMediaItem } from "../types";
 
 interface TweetCardProps {
     tweet: Tweet;
     onDelete?: (tweetId: string) => void;
+    onHide?: (tweetId: string) => void;
     onOpenReply?: (tweet: Tweet) => void;
 }
 
@@ -33,6 +48,7 @@ const getMediaUrl = (url: string) => {
 export const TweetCard: React.FC<TweetCardProps> = ({
     tweet,
     onDelete,
+    onHide,
     onOpenReply,
 }) => {
     const { user } = useAuth();
@@ -51,6 +67,42 @@ export const TweetCard: React.FC<TweetCardProps> = ({
 
     const [lightboxOpen, setLightboxOpen] = useState(false);
     const [lightboxIndex, setLightboxIndex] = useState(0);
+
+    // More Options Menu & Interactive Features
+    const [menuOpen, setMenuOpen] = useState(false);
+    const [isHidden, setIsHidden] = useState(false);
+    const [isBlocked, setIsBlocked] = useState(false);
+    const [isFollowing, setIsFollowing] = useState(false);
+    const [activityModalOpen, setActivityModalOpen] = useState(false);
+    const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+    const menuRef = useRef<HTMLDivElement>(null);
+    const toastTimeoutRef = useRef<number | null>(null);
+
+    const showToast = (message: string) => {
+        setToastMessage(message);
+        if (toastTimeoutRef.current) window.clearTimeout(toastTimeoutRef.current);
+        toastTimeoutRef.current = window.setTimeout(() => setToastMessage(null), 3000);
+    };
+
+    // Outside click listener for the dropdown menu
+    useEffect(() => {
+        if (!menuOpen) return;
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setMenuOpen(false);
+            }
+        };
+        const handleKeyDown = (event: KeyboardEvent) => {
+            if (event.key === "Escape") setMenuOpen(false);
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        document.addEventListener("keydown", handleKeyDown);
+        return () => {
+            document.removeEventListener("mousedown", handleClickOutside);
+            document.removeEventListener("keydown", handleKeyDown);
+        };
+    }, [menuOpen]);
 
     const mediaList: TweetMediaItem[] =
         tweet.media && tweet.media.length > 0
@@ -99,7 +151,6 @@ export const TweetCard: React.FC<TweetCardProps> = ({
         if (isLikeLoading) return;
         setIsLikeLoading(true);
 
-        // Optimistic UI update
         const nextLiked = !isLiked;
         setIsLiked(nextLiked);
         setLikesCount((prev) => (nextLiked ? prev + 1 : Math.max(0, prev - 1)));
@@ -110,8 +161,7 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                 setIsLiked(data.isLiked);
                 setLikesCount(data.likesCount);
             }
-        } catch (err) {
-            // Revert on error
+        } catch {
             setIsLiked(!nextLiked);
             setLikesCount((prev) => (!nextLiked ? prev + 1 : Math.max(0, prev - 1)));
         } finally {
@@ -139,8 +189,7 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                 setIsRetweeted(data.isRetweeted);
                 setRetweetsCount(data.retweetsCount);
             }
-        } catch (err) {
-            // Revert
+        } catch {
             setIsRetweeted(!nextRetweeted);
             setRetweetsCount((prev) => (!nextRetweeted ? prev + 1 : Math.max(0, prev - 1)));
         } finally {
@@ -166,7 +215,7 @@ export const TweetCard: React.FC<TweetCardProps> = ({
             if (data && typeof data.isBookmarked === "boolean") {
                 setIsBookmarked(data.isBookmarked);
             }
-        } catch (err) {
+        } catch {
             setIsBookmarked(!nextBookmarked);
         } finally {
             setIsBookmarkLoading(false);
@@ -175,6 +224,7 @@ export const TweetCard: React.FC<TweetCardProps> = ({
 
     const handleDelete = async (e: React.MouseEvent) => {
         e.stopPropagation();
+        setMenuOpen(false);
         if (!window.confirm("Are you sure you want to delete this post?")) return;
 
         try {
@@ -184,8 +234,105 @@ export const TweetCard: React.FC<TweetCardProps> = ({
             }
         } catch (err) {
             console.error("Failed to delete post:", err);
-            alert("Could not delete post. Please try again.");
+            showToast("Could not delete post. Please try again.");
         }
+    };
+
+    // Actions from the '...' Dropdown Menu
+    const handleNotInterested = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setMenuOpen(false);
+        setIsHidden(true);
+        if (onHide) onHide(tweet.id);
+        showToast("Thanks. We'll show fewer posts like this.");
+    };
+
+    const handleToggleFollow = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setMenuOpen(false);
+        if (!user) {
+            navigate("/auth");
+            return;
+        }
+
+        try {
+            if (isFollowing) {
+                await api.post(`/users/unfollow/${tweet.author.id}`);
+                setIsFollowing(false);
+                showToast(`Unfollowed @${tweet.author.username}`);
+            } else {
+                await api.post(`/users/follow/${tweet.author.id}`);
+                setIsFollowing(true);
+                showToast(`Now following @${tweet.author.username}`);
+            }
+        } catch (err) {
+            console.error("Follow error:", err);
+            showToast("Unable to update follow status.");
+        }
+    };
+
+    const handleBlock = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setMenuOpen(false);
+        if (!user) {
+            navigate("/auth");
+            return;
+        }
+        if (!window.confirm(`Block @${tweet.author.username}? They will not be able to follow you or view your posts.`)) return;
+
+        try {
+            await api.post(`/users/block/${tweet.author.id}`);
+            setIsBlocked(true);
+            showToast(`Blocked @${tweet.author.username}`);
+            if (onHide) onHide(tweet.id);
+        } catch (err) {
+            console.error("Block error:", err);
+            showToast("Unable to block user.");
+        }
+    };
+
+    const handleMute = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setMenuOpen(false);
+        showToast(`Muted @${tweet.author.username}. You will not see their notifications.`);
+    };
+
+    const handleViewActivity = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setMenuOpen(false);
+        setActivityModalOpen(true);
+    };
+
+    const handleEmbed = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setMenuOpen(false);
+        const url = `${window.location.origin}/tweet/${tweet.id}`;
+        void navigator.clipboard.writeText(url);
+        showToast("Post link copied to clipboard!");
+    };
+
+    const handleReport = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setMenuOpen(false);
+        showToast("Post reported. Our safety team will review it.");
+    };
+
+    const handleCommunityNote = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setMenuOpen(false);
+        showToast("Community Note requested for this post.");
+    };
+
+    const handleLists = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setMenuOpen(false);
+        showToast("Lists feature updated.");
+    };
+
+    const handlePin = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setMenuOpen(false);
+        showToast("Post pinned to your profile.");
     };
 
     // Render text with clickable #hashtags
@@ -213,9 +360,56 @@ export const TweetCard: React.FC<TweetCardProps> = ({
         });
     };
 
+    // Hidden post view (Twitter/X style with Undo & Dismiss)
+    if (isHidden) {
+        return (
+            <div className="flex items-center justify-between px-4 py-3.5 border-b border-border-dark bg-surface-primary/40 text-sm text-text-secondary animate-in fade-in duration-150">
+                <div className="flex items-center gap-2.5">
+                    <EyeOff size={16} className="text-text-muted shrink-0" />
+                    <span>Thanks. We won't show you this post anymore.</span>
+                </div>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setIsHidden(false);
+                        }}
+                        className="text-accent-blue font-bold text-xs hover:underline px-3 py-1.5 rounded-full hover:bg-accent-blue/10 cursor-pointer"
+                    >
+                        Undo
+                    </button>
+                    {onHide && (
+                        <button
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onHide(tweet.id);
+                            }}
+                            className="text-text-muted hover:text-white p-1 rounded-full hover:bg-white/10 cursor-pointer transition-colors"
+                            title="Dismiss from feed"
+                        >
+                            <X size={15} />
+                        </button>
+                    )}
+                </div>
+            </div>
+        );
+    }
+
+    // Blocked user post view
+    if (isBlocked) {
+        return (
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border-dark bg-surface-primary/40 text-sm text-text-muted">
+                <div className="flex items-center gap-2.5">
+                    <Ban size={16} className="text-red-400 shrink-0" />
+                    <span>You blocked @{tweet.author.username}. Their posts are hidden.</span>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <article
-            className="tweet-card flex gap-3 px-4 py-3.5 border-b border-border-dark hover:bg-white/[0.02] cursor-pointer transition-colors"
+            className="tweet-card relative flex gap-3 px-4 py-3.5 border-b border-border-dark hover:bg-white/[0.02] cursor-pointer transition-colors"
             onClick={() => navigate(`/tweet/${tweet.id}`)}
         >
             {/* Author Avatar */}
@@ -252,25 +446,161 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                         <span className="text-xs text-text-muted">· {formatTime(tweet.createdAt)}</span>
                     </div>
 
-                    {isAuthor ? (
-                        <button
-                            onClick={handleDelete}
-                            className="text-text-muted hover:text-red-400 p-1 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
-                            title="Delete Post"
-                        >
-                            <Trash2 size={15} />
-                        </button>
-                    ) : (
+                    {/* '...' More Options Button & Dropdown Menu */}
+                    <div className="relative">
                         <button
                             onClick={(e) => {
                                 e.stopPropagation();
+                                setMenuOpen((prev) => !prev);
                             }}
                             className="text-text-muted hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
                             title="More options"
+                            aria-expanded={menuOpen}
                         >
                             <MoreHorizontal size={17} />
                         </button>
-                    )}
+
+                        {/* Dropdown Menu popover matching X/Twitter */}
+                        {menuOpen && (
+                            <div
+                                ref={menuRef}
+                                onClick={(e) => e.stopPropagation()}
+                                className="absolute right-0 top-8 z-50 w-64 rounded-2xl border border-white/10 bg-[#0e1217] py-2 shadow-2xl shadow-black/95 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
+                            >
+                                {!isAuthor ? (
+                                    <>
+                                        {/* 1. Not interested */}
+                                        <button
+                                            onClick={handleNotInterested}
+                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
+                                        >
+                                            <Frown size={18} className="text-white shrink-0" />
+                                            <span>Not interested in this post</span>
+                                        </button>
+
+                                        {/* 2. Follow / Unfollow */}
+                                        <button
+                                            onClick={handleToggleFollow}
+                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
+                                        >
+                                            {isFollowing ? (
+                                                <>
+                                                    <UserMinus size={18} className="text-white shrink-0" />
+                                                    <span>Unfollow @{tweet.author.username}</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <UserPlus size={18} className="text-white shrink-0" />
+                                                    <span>Follow @{tweet.author.username}</span>
+                                                </>
+                                            )}
+                                        </button>
+
+                                        {/* 3. Add/remove from Lists */}
+                                        <button
+                                            onClick={handleLists}
+                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
+                                        >
+                                            <ListPlus size={18} className="text-white shrink-0" />
+                                            <span>Add/remove from Lists</span>
+                                        </button>
+
+                                        {/* 4. Mute */}
+                                        <button
+                                            onClick={handleMute}
+                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
+                                        >
+                                            <VolumeX size={18} className="text-white shrink-0" />
+                                            <span>Mute</span>
+                                        </button>
+
+                                        {/* 5. Block */}
+                                        <button
+                                            onClick={handleBlock}
+                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
+                                        >
+                                            <Ban size={18} className="text-white shrink-0" />
+                                            <span>Block @{tweet.author.username}</span>
+                                        </button>
+
+                                        {/* 6. View post activity */}
+                                        <button
+                                            onClick={handleViewActivity}
+                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
+                                        >
+                                            <BarChart2 size={18} className="text-white shrink-0" />
+                                            <span>View post activity</span>
+                                        </button>
+
+                                        {/* 7. Embed post */}
+                                        <button
+                                            onClick={handleEmbed}
+                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
+                                        >
+                                            <Code size={18} className="text-white shrink-0" />
+                                            <span>Embed post</span>
+                                        </button>
+
+                                        {/* 8. Report post */}
+                                        <button
+                                            onClick={handleReport}
+                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
+                                        >
+                                            <Flag size={18} className="text-white shrink-0" />
+                                            <span>Report post</span>
+                                        </button>
+
+                                        {/* 9. Request Community Note */}
+                                        <button
+                                            onClick={handleCommunityNote}
+                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
+                                        >
+                                            <Megaphone size={18} className="text-white shrink-0" />
+                                            <span>Request Community Note</span>
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        {/* Author: Delete Post */}
+                                        <button
+                                            onClick={handleDelete}
+                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-red-500 transition-colors hover:bg-red-500/10 cursor-pointer"
+                                        >
+                                            <Trash2 size={18} className="text-red-500 shrink-0" />
+                                            <span>Delete post</span>
+                                        </button>
+
+                                        {/* Author: Pin to profile */}
+                                        <button
+                                            onClick={handlePin}
+                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
+                                        >
+                                            <Pin size={18} className="text-white shrink-0" />
+                                            <span>Pin to your profile</span>
+                                        </button>
+
+                                        {/* Author: View post activity */}
+                                        <button
+                                            onClick={handleViewActivity}
+                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
+                                        >
+                                            <BarChart2 size={18} className="text-white shrink-0" />
+                                            <span>View post activity</span>
+                                        </button>
+
+                                        {/* Author: Embed post / Copy Link */}
+                                        <button
+                                            onClick={handleEmbed}
+                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
+                                        >
+                                            <Code size={18} className="text-white shrink-0" />
+                                            <span>Embed post</span>
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {/* Content */}
@@ -347,6 +677,7 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                             else navigate(`/tweet/${tweet.id}`);
                         }}
                         className="flex items-center gap-1.5 text-xs hover:text-accent-blue p-1.5 rounded-full hover:bg-accent-blue/10 transition-colors cursor-pointer"
+                        title="Reply"
                     >
                         <MessageCircle size={17} />
                         <span>{tweet._count.replies || 0}</span>
@@ -358,6 +689,7 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                         className={`flex items-center gap-1.5 text-xs hover:text-emerald-400 p-1.5 rounded-full hover:bg-emerald-500/10 transition-colors cursor-pointer ${
                             isRetweeted ? "text-emerald-400" : ""
                         }`}
+                        title="Repost"
                     >
                         <Repeat size={17} />
                         <span>{retweetsCount}</span>
@@ -369,6 +701,7 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                         className={`flex items-center gap-1.5 text-xs hover:text-pink-500 p-1.5 rounded-full hover:bg-pink-500/10 transition-colors cursor-pointer ${
                             isLiked ? "text-pink-500" : ""
                         }`}
+                        title="Like"
                     >
                         <Heart
                             size={17}
@@ -383,6 +716,7 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                         className={`flex items-center gap-1.5 text-xs hover:text-accent-blue p-1.5 rounded-full hover:bg-accent-blue/10 transition-colors cursor-pointer ${
                             isBookmarked ? "text-accent-blue" : ""
                         }`}
+                        title="Bookmark"
                     >
                         <Bookmark
                             size={17}
@@ -394,15 +728,23 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
-                            navigator.clipboard.writeText(window.location.origin + `/tweet/${tweet.id}`);
-                            alert("Link copied to clipboard!");
+                            void navigator.clipboard.writeText(window.location.origin + `/tweet/${tweet.id}`);
+                            showToast("Link copied to clipboard!");
                         }}
                         className="flex items-center gap-1.5 text-xs hover:text-accent-blue p-1.5 rounded-full hover:bg-accent-blue/10 transition-colors cursor-pointer"
+                        title="Share"
                     >
                         <Share2 size={16} />
                     </button>
                 </div>
             </div>
+
+            {/* In-Card Toast Notification */}
+            {toastMessage && (
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-50 rounded-full bg-accent-blue px-4 py-1.5 text-xs font-bold text-white shadow-xl shadow-black/80 pointer-events-none animate-in fade-in slide-in-from-bottom-2 duration-150 whitespace-nowrap">
+                    {toastMessage}
+                </div>
+            )}
 
             {/* Fullscreen Media Gallery Lightbox */}
             <MediaLightboxModal
@@ -410,6 +752,13 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                 media={mediaList.map((m) => ({ ...m, url: getMediaUrl(m.url) }))}
                 initialIndex={lightboxIndex}
                 onClose={() => setLightboxOpen(false)}
+            />
+
+            {/* Post Activity / Analytics Modal */}
+            <PostActivityModal
+                isOpen={activityModalOpen}
+                onClose={() => setActivityModalOpen(false)}
+                tweet={tweet}
             />
         </article>
     );

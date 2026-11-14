@@ -214,7 +214,12 @@ export const ExplorePage: React.FC = () => {
                     ) : (
                         <div>
                             {tweets.map((t) => (
-                                <TweetCard key={t.id} tweet={t} />
+                                <TweetCard
+                                    key={t.id}
+                                    tweet={t}
+                                    onHide={(id) => setTweets((prev) => prev.filter((item) => item.id !== id))}
+                                    onDelete={(id) => setTweets((prev) => prev.filter((item) => item.id !== id))}
+                                />
                             ))}
 
                             {/* Page-by-Page Numbered Pagination for Hashtag Feed */}

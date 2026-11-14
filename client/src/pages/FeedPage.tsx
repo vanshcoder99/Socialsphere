@@ -268,6 +268,7 @@ export const FeedPage: React.FC = () => {
                             key={t.id}
                             tweet={t}
                             onDelete={handleTweetDeleted}
+                            onHide={(id) => setTweets((prev) => prev.filter((item) => item.id !== id))}
                             onOpenReply={(tweetToReply) => setReplyingTweet(tweetToReply)}
                         />
                     ))}

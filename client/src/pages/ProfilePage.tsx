@@ -488,6 +488,9 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenPremiumModal }) 
                                     onDelete={(deletedId) =>
                                         setTweets((prev) => prev.filter((item) => item.id !== deletedId))
                                     }
+                                    onHide={(id) =>
+                                        setTweets((prev) => prev.filter((item) => item.id !== id))
+                                    }
                                 />
                             ))}
 
