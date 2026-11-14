@@ -80,7 +80,7 @@ export const TweetDetailPage: React.FC = () => {
                 >
                     <ArrowLeft size={20} />
                 </button>
-                <h2 className="text-xl font-extrabold text-white">Thread</h2>
+                <h2 className="text-xl font-extrabold text-white">Post</h2>
             </div>
 
             {/* Root Tweet */}

@@ -35,29 +35,6 @@ const formatMetricCount = (count: number): string => {
     return count.toString();
 };
 
-const computeTweetViews = (
-    tweetId: string,
-    createdAt: string,
-    totalEngagements: number,
-    serverViews?: number
-): number => {
-    if (typeof serverViews === "number" && serverViews > 0) {
-        return serverViews;
-    }
-    const idHash = Math.abs(
-        tweetId.split("").reduce((acc, c) => ((acc << 5) - acc) + c.charCodeAt(0), 0)
-    );
-    const baseline = (idHash % 180) + 60;
-    const hoursElapsed = Math.max(
-        1,
-        Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60))
-    );
-    return Math.max(
-        totalEngagements * 16 + baseline + Math.min(hoursElapsed * 20, 3500),
-        totalEngagements * 4 + 40
-    );
-};
-
 interface TweetCardProps {
     tweet: Tweet;
     onDelete?: (tweetId: string) => void;
@@ -148,8 +125,29 @@ export const TweetCard: React.FC<TweetCardProps> = ({
             : [];
 
     const isAuthor = user?.id === tweet.author.id;
-    const totalEngagements = likesCount + retweetsCount + (tweet._count.replies || 0) + (tweet._count.bookmarks || 0);
-    const viewsCount = computeTweetViews(tweet.id, tweet.createdAt, totalEngagements, (tweet as any).views);
+    const [viewsCount, setViewsCount] = useState<number>(tweet.views ?? 0);
+    const hasRecordedViewRef = useRef(false);
+
+    // Keep viewsCount in sync when tweet prop changes
+    useEffect(() => {
+        if (typeof tweet.views === "number") {
+            setViewsCount(tweet.views);
+        }
+    }, [tweet.id, tweet.views]);
+
+    // Record real view in real time on view/mount
+    useEffect(() => {
+        if (!hasRecordedViewRef.current && tweet.id) {
+            hasRecordedViewRef.current = true;
+            api.post<{ success: boolean; views?: number }>(`/tweets/${tweet.id}/view`)
+                .then((res) => {
+                    if (res.data?.success && typeof res.data.views === "number") {
+                        setViewsCount(res.data.views);
+                    }
+                })
+                .catch(() => {});
+        }
+    }, [tweet.id]);
 
     // Synchronize local optimistic state when props change
     useEffect(() => {

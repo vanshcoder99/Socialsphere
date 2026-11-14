@@ -1,5 +1,5 @@
 import { emitNotificationToUser, broadcastNewTweet } from '../socket.js';
-import type { Response } from "express";
+import type { Request, Response } from "express";
 import { prisma } from "../index.js";
 import type { AuthenticatedRequest } from "../middleware/auth.middleware.js";
 import { deleteCloudinaryAsset } from "../lib/cloudinary.js";
@@ -443,6 +443,7 @@ export const getTimelineFeed = async (req: AuthenticatedRequest, res: Response) 
             mediaUrl: t.mediaUrl,
             mediaType: t.mediaType,
             media: formatTweetMedia(t),
+            views: t.views ?? 0,
             createdAt: t.createdAt,
             updatedAt: t.updatedAt,
             author: t.author,
@@ -580,12 +581,26 @@ export const getTweetById = async (req: AuthenticatedRequest, res: Response) => 
             }
         }
 
+        // Atomically increment view count in database for real-time tracking
+        let currentViews = tweet.views ?? 0;
+        try {
+            const updated = await prisma.tweet.update({
+                where: { id },
+                data: { views: { increment: 1 } },
+                select: { views: true },
+            });
+            currentViews = updated.views;
+        } catch {
+            // Keep existing views if update fails
+        }
+
         const formattedReplies = repliesToInclude.map((r) => ({
             id: r.id,
             content: r.content,
             mediaUrl: r.mediaUrl,
             mediaType: r.mediaType,
             media: formatTweetMedia(r),
+            views: r.views ?? 0,
             createdAt: r.createdAt,
             author: r.author,
             hashtags: r.hashtags.map((h: any) => h.hashtag.tag),
@@ -602,6 +617,7 @@ export const getTweetById = async (req: AuthenticatedRequest, res: Response) => 
                 mediaUrl: tweet.mediaUrl,
                 mediaType: tweet.mediaType,
                 media: formatTweetMedia(tweet),
+                views: currentViews,
                 createdAt: tweet.createdAt,
                 updatedAt: tweet.updatedAt,
                 author: tweet.author,
@@ -971,6 +987,7 @@ export const getUserTweets = async (req: AuthenticatedRequest, res: Response) =>
             mediaUrl: t.mediaUrl,
             mediaType: t.mediaType,
             media: formatTweetMedia(t),
+            views: t.views ?? 0,
             createdAt: t.createdAt,
             author: t.author,
             hashtags: t.hashtags.map((h) => h.hashtag.tag),
@@ -1119,6 +1136,7 @@ export const getTweetsByHashtag = async (req: AuthenticatedRequest, res: Respons
             mediaUrl: th.tweet.mediaUrl,
             mediaType: th.tweet.mediaType,
             media: formatTweetMedia(th.tweet),
+            views: th.tweet.views ?? 0,
             createdAt: th.tweet.createdAt,
             author: th.tweet.author,
             hashtags: th.tweet.hashtags.map((h) => h.hashtag.tag),
@@ -1207,5 +1225,45 @@ export const getTrendingHashtags = async (req: AuthenticatedRequest, res: Respon
     } catch (error) {
         console.error("Error in getTrendingHashtags:", error);
         return res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+// ==========================================
+// 8. RECORD REAL-TIME TWEET VIEW (PERSISTENT & REAL-TIME)
+// ==========================================
+export const recordTweetView = async (req: Request, res: Response) => {
+    try {
+        const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+        if (!id) return res.status(400).json({ success: false });
+        const updated = await prisma.tweet.update({
+            where: { id },
+            data: { views: { increment: 1 } },
+            select: { id: true, views: true },
+        });
+        return res.status(200).json({ success: true, views: updated.views });
+    } catch {
+        return res.status(200).json({ success: false });
+    }
+};
+
+export const recordBatchTweetViews = async (req: Request, res: Response) => {
+    try {
+        const { tweetIds } = req.body as { tweetIds?: string[] };
+        if (!Array.isArray(tweetIds) || tweetIds.length === 0) {
+            return res.status(200).json({ success: true, count: 0 });
+        }
+        const validIds = tweetIds
+            .slice(0, 50)
+            .filter((id): id is string => typeof id === "string" && id.length > 0);
+        if (validIds.length === 0) {
+            return res.status(200).json({ success: true, count: 0 });
+        }
+        await prisma.tweet.updateMany({
+            where: { id: { in: validIds } },
+            data: { views: { increment: 1 } },
+        });
+        return res.status(200).json({ success: true, count: validIds.length });
+    } catch {
+        return res.status(200).json({ success: false });
     }
 };

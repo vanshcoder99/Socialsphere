@@ -426,6 +426,7 @@ export const getUserBookmarks = async (req: AuthenticatedRequest, res: Response)
             mediaUrl: b.tweet.mediaUrl,
             mediaType: b.tweet.mediaType,
             media: formatTweetMedia(b.tweet),
+            views: b.tweet.views ?? 0,
             createdAt: b.tweet.createdAt,
             author: b.tweet.author,
             hashtags: b.tweet.hashtags.map((h: any) => h.hashtag.tag),

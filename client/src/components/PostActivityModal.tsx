@@ -57,14 +57,9 @@ export const PostActivityModal: React.FC<PostActivityModalProps> = ({
         tweet.id.split("").reduce((acc, c) => ((acc << 5) - acc) + c.charCodeAt(0), 0)
     );
     const baseline = (idHash % 180) + 60;
-    const hoursElapsed = Math.max(
-        1,
-        Math.floor((Date.now() - new Date(tweet.createdAt).getTime()) / (1000 * 60 * 60))
-    );
-    const impressions = typeof impressionsProp === "number" ? impressionsProp : Math.max(
-        totalEngagements * 16 + baseline + Math.min(hoursElapsed * 20, 3500),
-        totalEngagements * 4 + 40
-    );
+    const impressions = typeof impressionsProp === "number"
+        ? impressionsProp
+        : (tweet.views ?? totalEngagements);
 
     const engagementRate = ((totalEngagements / Math.max(impressions, 1)) * 100).toFixed(1);
     const profileVisits = Math.max(1, Math.round(impressions * 0.07) + (idHash % 12));

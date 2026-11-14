@@ -8,6 +8,8 @@ import {
     getUserTweets,
     getTweetsByHashtag,
     getTrendingHashtags,
+    recordTweetView,
+    recordBatchTweetViews,
 } from "../controllers/tweet.controller.js";
 import {
     toggleLike,
@@ -28,6 +30,10 @@ router.get("/trending", optionalAuthenticateToken as any, getTrendingHashtags);
 router.get("/hashtag/:tag", optionalAuthenticateToken as any, getTweetsByHashtag);
 router.get("/user/:username", optionalAuthenticateToken as any, getUserTweets);
 router.get("/bookmarks", authenticateToken as any, getUserBookmarks);
+
+// Real-Time Views Tracking
+router.post("/views/batch", recordBatchTweetViews as any);
+router.post("/:id/view", recordTweetView as any);
 
 // Tweet CRUD
 router.post("/", authenticateToken as any, createTweet);

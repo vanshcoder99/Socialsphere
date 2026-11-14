@@ -69,6 +69,7 @@ export interface Tweet {
     isLiked: boolean;
     isRetweeted: boolean;
     isBookmarked: boolean;
+    views?: number;
     replies?: Tweet[];
 }
 
