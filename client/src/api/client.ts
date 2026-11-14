@@ -6,7 +6,7 @@ const API_BASE_URL = rawApiUrl.endsWith("/api") ? rawApiUrl : `${rawApiUrl}/api`
 export const api = axios.create({
     baseURL: API_BASE_URL,
     withCredentials: true, // Enables cookies for refreshToken
-    timeout: 15000, // Request timeout to prevent indefinite loading spinners
+    timeout: 60000, // Request timeout to prevent indefinite loading spinners
     headers: {
         "Content-Type": "application/json",
     },

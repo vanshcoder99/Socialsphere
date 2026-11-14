@@ -54,8 +54,11 @@ interface GifItem {
 
 const formatErrorMessage = (error: unknown, fallback: string) => {
     if (!error || typeof error !== "object") return fallback;
-    const value = error as { response?: { data?: { error?: unknown } }; message?: unknown };
+    const value = error as { code?: unknown; response?: { data?: { error?: unknown } }; message?: unknown };
     if (typeof value.response?.data?.error === "string") return value.response.data.error;
+    if (value.code === "ECONNABORTED" || (typeof value.message === "string" && value.message.toLowerCase().includes("timeout"))) {
+        return "Request timed out while saving post. Please retry.";
+    }
     return typeof value.message === "string" ? value.message : fallback;
 };
 
@@ -550,7 +553,7 @@ export const Composer: React.FC<ComposerProps> = ({
                     media: validMedia,
                     mediaUrl: validMedia[0]?.url || null,
                     mediaType: validMedia[0]?.mediaType || null,
-                }, { timeout: 60000 });
+                }, { timeout: 90000 });
                 onTweetPosted(data.reply);
             } else {
                 // Root tweet
@@ -559,7 +562,7 @@ export const Composer: React.FC<ComposerProps> = ({
                     media: validMedia,
                     mediaUrl: validMedia[0]?.url || null,
                     mediaType: validMedia[0]?.mediaType || null,
-                }, { timeout: 60000 });
+                }, { timeout: 90000 });
                 onTweetPosted(data.tweet);
             }
 

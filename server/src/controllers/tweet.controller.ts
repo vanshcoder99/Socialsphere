@@ -65,7 +65,7 @@ const validateAndProcessMedia = async (
     rawMedia: any,
     legacyMediaUrl: any,
     legacyMediaType: any
-): Promise<{ error?: { status: number; message: string }; result?: ProcessedMediaResult }> => {
+): Promise<{ error?: { status: number; message: string }; result?: ProcessedMediaResult; alreadyCreatedTweet?: any }> => {
     if (rawMedia !== undefined && rawMedia !== null) {
         if (!Array.isArray(rawMedia)) {
             return { error: { status: 400, message: "Media must be an array of media objects" } };
@@ -104,12 +104,60 @@ const validateAndProcessMedia = async (
                     return { error: { status: 400, message: "Media URL does not match the authenticated upload" } };
                 }
 
-                if (upload.status !== "PENDING") {
+                if (upload.status === "CONSUMED") {
+                    // Check if this user already created a tweet with this media publicId (idempotent retry)
+                    const existingTweet = await prisma.tweet.findFirst({
+                        where: {
+                            authorId: userId,
+                            media: { some: { publicId } },
+                        },
+                        include: {
+                            author: {
+                                select: {
+                                    id: true,
+                                    username: true,
+                                    avatarUrl: true,
+                                    isVerified: true,
+                                },
+                            },
+                            media: {
+                                orderBy: { order: "asc" },
+                            },
+                            hashtags: {
+                                include: { hashtag: true },
+                            },
+                            _count: {
+                                select: {
+                                    likes: true,
+                                    retweets: true,
+                                    replies: true,
+                                    bookmarks: true,
+                                },
+                            },
+                        },
+                    });
+
+                    if (existingTweet) {
+                        return { alreadyCreatedTweet: existingTweet };
+                    }
+
                     return { error: { status: 403, message: "Media upload has already been attached to another post" } };
                 }
 
+                if (upload.status === "EXPIRED") {
+                    // If the upload hasn't passed its natural TTL (expiresAt), auto-recover it to PENDING
+                    if (new Date(upload.expiresAt) > new Date()) {
+                        await prisma.pendingUpload.update({
+                            where: { id: upload.id },
+                            data: { status: "PENDING" },
+                        });
+                    } else {
+                        return { error: { status: 410, message: "Media upload session has expired. Please re-select your file." } };
+                    }
+                }
+
                 if (new Date(upload.expiresAt) < new Date()) {
-                    return { error: { status: 403, message: "Media upload session has expired" } };
+                    return { error: { status: 410, message: "Media upload session has expired. Please re-select your file." } };
                 }
             }
 
@@ -182,7 +230,6 @@ export const extractHashtags = (content: string): string[] => {
 // 1. CREATE TWEET (PREMIUM CHAR CHECK & HASHTAGS & MEDIA)
 // ==========================================
 export const createTweet = async (req: AuthenticatedRequest, res: Response) => {
-    let mediaForCleanup: ProcessedMediaResult["processedMedia"] = [];
     try {
         const userId = req.user?.userId;
         const { content, mediaUrl, mediaType, media } = req.body;
@@ -195,16 +242,19 @@ export const createTweet = async (req: AuthenticatedRequest, res: Response) => {
             return res.status(400).json({ error: "Tweet content cannot be empty" });
         }
 
-        const user = await prisma.user.findUnique({
-            where: { id: userId },
-            select: { id: true },
-        });
+        const [user, entitlements, mediaValidation] = await Promise.all([
+            prisma.user.findUnique({
+                where: { id: userId },
+                select: { id: true },
+            }),
+            getUserEntitlements(userId),
+            validateAndProcessMedia(userId, media, mediaUrl, mediaType),
+        ]);
 
         if (!user) {
             return res.status(404).json({ error: "User not found" });
         }
 
-        const entitlements = await getUserEntitlements(userId);
         const MAX_CHARS = entitlements.maxPostCharacters;
         if (countCharacters(content) > MAX_CHARS) {
             return res.status(400).json({
@@ -212,68 +262,89 @@ export const createTweet = async (req: AuthenticatedRequest, res: Response) => {
             });
         }
 
-        const mediaValidation = await validateAndProcessMedia(userId, media, mediaUrl, mediaType);
         if (mediaValidation.error) {
             return res.status(mediaValidation.error.status).json({ error: mediaValidation.error.message });
         }
+
+        // Idempotency: If this media was already successfully attached in a previous attempt
+        if (mediaValidation.alreadyCreatedTweet) {
+            const existingTweet = mediaValidation.alreadyCreatedTweet;
+            return res.status(200).json({
+                message: "Tweet posted successfully",
+                tweet: {
+                    ...existingTweet,
+                    media: formatTweetMedia(existingTweet),
+                    hashtags: existingTweet.hashtags.map((h: any) => h.hashtag.tag),
+                    isLiked: false,
+                    isRetweeted: false,
+                    isBookmarked: false,
+                },
+            });
+        }
+
         const { processedMedia, primaryMediaUrl, primaryMediaType } = mediaValidation.result!;
-        mediaForCleanup = processedMedia;
 
         const tagNames = extractHashtags(content);
+        if (tagNames.length > 0) {
+            await prisma.hashtag.createMany({
+                data: tagNames.map((tag) => ({ tag })),
+                skipDuplicates: true,
+            });
+        }
 
         const publicIdsToConsume = processedMedia.map((m) => m.publicId).filter(Boolean) as string[];
         const tweet = await prisma.$transaction(async (tx) => {
             const createdTweet = await tx.tweet.create({
-            data: {
-                content: content.trim(),
-                mediaUrl: primaryMediaUrl,
-                mediaType: primaryMediaType,
-                authorId: userId,
-                ...(processedMedia.length > 0 ? {
-                    media: {
-                        create: processedMedia.map((m, idx) => ({
-                            url: m.url,
-                            publicId: m.publicId,
-                            mediaType: m.mediaType,
-                            order: idx,
-                        })),
-                    },
-                } : {}),
-                hashtags: {
-                    create: tagNames.map((tag) => ({
-                        hashtag: {
-                            connectOrCreate: {
-                                where: { tag },
-                                create: { tag },
-                            },
+                data: {
+                    content: content.trim(),
+                    mediaUrl: primaryMediaUrl,
+                    mediaType: primaryMediaType,
+                    authorId: userId,
+                    views: 0,
+                    ...(processedMedia.length > 0 ? {
+                        media: {
+                            create: processedMedia.map((m, idx) => ({
+                                url: m.url,
+                                publicId: m.publicId,
+                                mediaType: m.mediaType,
+                                order: idx,
+                            })),
                         },
-                    })),
+                    } : {}),
+                    ...(tagNames.length > 0 ? {
+                        hashtags: {
+                            create: tagNames.map((tag) => ({
+                                hashtag: {
+                                    connect: { tag },
+                                },
+                            })),
+                        },
+                    } : {}),
                 },
-            },
-            include: {
-                author: {
-                    select: {
-                        id: true,
-                        username: true,
-                        avatarUrl: true,
-                        isVerified: true,
+                include: {
+                    author: {
+                        select: {
+                            id: true,
+                            username: true,
+                            avatarUrl: true,
+                            isVerified: true,
+                        },
+                    },
+                    media: {
+                        orderBy: { order: "asc" },
+                    },
+                    hashtags: {
+                        include: { hashtag: true },
+                    },
+                    _count: {
+                        select: {
+                            likes: true,
+                            retweets: true,
+                            replies: true,
+                            bookmarks: true,
+                        },
                     },
                 },
-                media: {
-                    orderBy: { order: "asc" },
-                },
-                hashtags: {
-                    include: { hashtag: true },
-                },
-                _count: {
-                    select: {
-                        likes: true,
-                        retweets: true,
-                        replies: true,
-                        bookmarks: true,
-                    },
-                },
-            },
             });
 
             if (publicIdsToConsume.length > 0) {
@@ -291,7 +362,7 @@ export const createTweet = async (req: AuthenticatedRequest, res: Response) => {
                 }
             }
             return createdTweet;
-        });
+        }, { timeout: 35000 });
 
         const authorPrivacy = await prisma.user.findUnique({ where: { id: userId }, select: { isPrivate: true } });
         if (!authorPrivacy?.isPrivate) broadcastNewTweet(tweet);
@@ -308,11 +379,10 @@ export const createTweet = async (req: AuthenticatedRequest, res: Response) => {
         });
     } catch (error) {
         if (error instanceof Error && error.message === "PENDING_MEDIA_CONFLICT") {
-            return res.status(409).json({ error: "One or more uploads expired or were already attached to a post." });
+            return res.status(409).json({ error: "One or more uploads were already attached to another post." });
         }
-        if (req.user?.userId) await cleanupPendingCloudinaryMedia(req.user.userId, mediaForCleanup);
         console.error("Error in createTweet:", error);
-        return res.status(500).json({ error: "Internal server error" });
+        return res.status(500).json({ error: "Failed to create post. Please try again." });
     }
 };
 
@@ -639,7 +709,6 @@ export const getTweetById = async (req: AuthenticatedRequest, res: Response) => 
 // 4. CREATE REPLY (THREADED)
 // ==========================================
 export const createReply = async (req: AuthenticatedRequest, res: Response) => {
-    let mediaForCleanup: ProcessedMediaResult["processedMedia"] = [];
     try {
         const userId = req.user?.userId;
         const parentTweetId = req.params.parentTweetId as string;
@@ -697,10 +766,29 @@ export const createReply = async (req: AuthenticatedRequest, res: Response) => {
         if (mediaValidation.error) {
             return res.status(mediaValidation.error.status).json({ error: mediaValidation.error.message });
         }
+        if (mediaValidation.alreadyCreatedTweet) {
+            const existing = mediaValidation.alreadyCreatedTweet;
+            return res.status(200).json({
+                message: "Reply already posted",
+                reply: {
+                    ...existing,
+                    media: formatTweetMedia(existing),
+                    hashtags: (existing.hashtags || []).map((h: any) => h.hashtag?.tag || h),
+                    isLiked: false,
+                    isRetweeted: false,
+                    isBookmarked: false,
+                },
+            });
+        }
         const { processedMedia, primaryMediaUrl, primaryMediaType } = mediaValidation.result!;
-        mediaForCleanup = processedMedia;
 
         const tagNames = extractHashtags(content);
+        if (tagNames.length > 0) {
+            await prisma.hashtag.createMany({
+                data: tagNames.map((tag) => ({ tag })),
+                skipDuplicates: true,
+            });
+        }
 
         const reply = await prisma.$transaction(async (tx) => {
             const newReply = await tx.tweet.create({
@@ -710,6 +798,7 @@ export const createReply = async (req: AuthenticatedRequest, res: Response) => {
                     mediaType: primaryMediaType,
                     authorId: userId,
                     parentTweetId: parentTweet.id,
+                    views: 0,
                     ...(processedMedia.length > 0 ? {
                         media: {
                             create: processedMedia.map((m, idx) => ({
@@ -720,16 +809,15 @@ export const createReply = async (req: AuthenticatedRequest, res: Response) => {
                             })),
                         },
                     } : {}),
-                    hashtags: {
-                        create: tagNames.map((tag) => ({
-                            hashtag: {
-                                connectOrCreate: {
-                                    where: { tag },
-                                    create: { tag },
+                    ...(tagNames.length > 0 ? {
+                        hashtags: {
+                            create: tagNames.map((tag) => ({
+                                hashtag: {
+                                    connect: { tag },
                                 },
-                            },
-                        })),
-                    },
+                            })),
+                        },
+                    } : {}),
                 },
                 include: {
                     author: {
@@ -785,7 +873,7 @@ export const createReply = async (req: AuthenticatedRequest, res: Response) => {
             }
 
             return newReply;
-        });
+        }, { timeout: 35000 });
 
         if (parentTweet.authorId !== userId) {
             emitNotificationToUser(parentTweet.authorId, {
@@ -808,11 +896,10 @@ export const createReply = async (req: AuthenticatedRequest, res: Response) => {
         });
     } catch (error) {
         if (error instanceof Error && error.message === "PENDING_MEDIA_CONFLICT") {
-            return res.status(409).json({ error: "One or more uploads expired or were already attached to a post." });
+            return res.status(409).json({ error: "One or more uploads were already attached to another post." });
         }
-        if (req.user?.userId) await cleanupPendingCloudinaryMedia(req.user.userId, mediaForCleanup);
         console.error("Error in createReply:", error);
-        return res.status(500).json({ error: "Internal server error" });
+        return res.status(500).json({ error: "Failed to create reply. Please try again." });
     }
 };
 
