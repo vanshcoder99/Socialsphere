@@ -22,12 +22,18 @@ interface PostActivityModalProps {
     isOpen: boolean;
     onClose: () => void;
     tweet: Tweet;
+    impressions?: number;
+    likesCount?: number;
+    retweetsCount?: number;
 }
 
 export const PostActivityModal: React.FC<PostActivityModalProps> = ({
     isOpen,
     onClose,
     tweet,
+    impressions: impressionsProp,
+    likesCount,
+    retweetsCount,
 }) => {
     useEffect(() => {
         if (!isOpen) return;
@@ -40,8 +46,8 @@ export const PostActivityModal: React.FC<PostActivityModalProps> = ({
 
     if (!isOpen) return null;
 
-    const likes = tweet._count.likes || 0;
-    const retweets = tweet._count.retweets || 0;
+    const likes = typeof likesCount === "number" ? likesCount : (tweet._count.likes || 0);
+    const retweets = typeof retweetsCount === "number" ? retweetsCount : (tweet._count.retweets || 0);
     const replies = tweet._count.replies || 0;
     const bookmarks = tweet._count.bookmarks || 0;
     const totalEngagements = likes + retweets + replies + bookmarks;
@@ -55,7 +61,7 @@ export const PostActivityModal: React.FC<PostActivityModalProps> = ({
         1,
         Math.floor((Date.now() - new Date(tweet.createdAt).getTime()) / (1000 * 60 * 60))
     );
-    const impressions = Math.max(
+    const impressions = typeof impressionsProp === "number" ? impressionsProp : Math.max(
         totalEngagements * 16 + baseline + Math.min(hoursElapsed * 20, 3500),
         totalEngagements * 4 + 40
     );

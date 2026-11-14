@@ -12,13 +12,8 @@ import {
     Frown,
     UserPlus,
     UserMinus,
-    ListPlus,
-    VolumeX,
     Ban,
     BarChart2,
-    Code,
-    Flag,
-    Megaphone,
     Pin,
     EyeOff,
     X,
@@ -28,6 +23,40 @@ import { useAuth } from "../features/auth/hooks";
 import { MediaLightboxModal } from "./MediaLightboxModal";
 import { PostActivityModal } from "./PostActivityModal";
 import type { Tweet, TweetMediaItem } from "../types";
+
+const formatMetricCount = (count: number): string => {
+    if (!count || count <= 0) return "0";
+    if (count >= 1_000_000) {
+        return (count / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
+    }
+    if (count >= 1_000) {
+        return (count / 1_000).toFixed(1).replace(/\.0$/, "") + "K";
+    }
+    return count.toString();
+};
+
+const computeTweetViews = (
+    tweetId: string,
+    createdAt: string,
+    totalEngagements: number,
+    serverViews?: number
+): number => {
+    if (typeof serverViews === "number" && serverViews > 0) {
+        return serverViews;
+    }
+    const idHash = Math.abs(
+        tweetId.split("").reduce((acc, c) => ((acc << 5) - acc) + c.charCodeAt(0), 0)
+    );
+    const baseline = (idHash % 180) + 60;
+    const hoursElapsed = Math.max(
+        1,
+        Math.floor((Date.now() - new Date(createdAt).getTime()) / (1000 * 60 * 60))
+    );
+    return Math.max(
+        totalEngagements * 16 + baseline + Math.min(hoursElapsed * 20, 3500),
+        totalEngagements * 4 + 40
+    );
+};
 
 interface TweetCardProps {
     tweet: Tweet;
@@ -119,6 +148,8 @@ export const TweetCard: React.FC<TweetCardProps> = ({
             : [];
 
     const isAuthor = user?.id === tweet.author.id;
+    const totalEngagements = likesCount + retweetsCount + (tweet._count.replies || 0) + (tweet._count.bookmarks || 0);
+    const viewsCount = computeTweetViews(tweet.id, tweet.createdAt, totalEngagements, (tweet as any).views);
 
     // Synchronize local optimistic state when props change
     useEffect(() => {
@@ -291,48 +322,19 @@ export const TweetCard: React.FC<TweetCardProps> = ({
         }
     };
 
-    const handleMute = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setMenuOpen(false);
-        showToast(`Muted @${tweet.author.username}. You will not see their notifications.`);
-    };
-
-    const handleViewActivity = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setMenuOpen(false);
-        setActivityModalOpen(true);
-    };
-
-    const handleEmbed = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setMenuOpen(false);
-        const url = `${window.location.origin}/tweet/${tweet.id}`;
-        void navigator.clipboard.writeText(url);
-        showToast("Post link copied to clipboard!");
-    };
-
-    const handleReport = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setMenuOpen(false);
-        showToast("Post reported. Our safety team will review it.");
-    };
-
-    const handleCommunityNote = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setMenuOpen(false);
-        showToast("Community Note requested for this post.");
-    };
-
-    const handleLists = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        setMenuOpen(false);
-        showToast("Lists feature updated.");
-    };
-
     const handlePin = (e: React.MouseEvent) => {
         e.stopPropagation();
         setMenuOpen(false);
         showToast("Post pinned to your profile.");
+    };
+
+    const handleAnalyticsClick = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (isAuthor) {
+            setActivityModalOpen(true);
+        } else {
+            showToast(`Views: ${viewsCount.toLocaleString()} times seen`);
+        }
     };
 
     // Render text with clickable #hashtags
@@ -460,19 +462,19 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                             <MoreHorizontal size={17} />
                         </button>
 
-                        {/* Dropdown Menu popover matching X/Twitter */}
+                        {/* Dropdown Menu popover */}
                         {menuOpen && (
                             <div
                                 ref={menuRef}
                                 onClick={(e) => e.stopPropagation()}
-                                className="absolute right-0 top-8 z-50 w-64 rounded-2xl border border-white/10 bg-[#0e1217] py-2 shadow-2xl shadow-black/95 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
+                                className="absolute right-0 top-8 z-50 w-56 rounded-2xl border border-white/10 bg-[#0e1217] py-2 shadow-2xl shadow-black/95 backdrop-blur-xl animate-in fade-in zoom-in-95 duration-100"
                             >
                                 {!isAuthor ? (
                                     <>
                                         {/* 1. Not interested */}
                                         <button
                                             onClick={handleNotInterested}
-                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
+                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
                                         >
                                             <Frown size={18} className="text-white shrink-0" />
                                             <span>Not interested in this post</span>
@@ -481,7 +483,7 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                                         {/* 2. Follow / Unfollow */}
                                         <button
                                             onClick={handleToggleFollow}
-                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
+                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
                                         >
                                             {isFollowing ? (
                                                 <>
@@ -496,67 +498,13 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                                             )}
                                         </button>
 
-                                        {/* 3. Add/remove from Lists */}
-                                        <button
-                                            onClick={handleLists}
-                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
-                                        >
-                                            <ListPlus size={18} className="text-white shrink-0" />
-                                            <span>Add/remove from Lists</span>
-                                        </button>
-
-                                        {/* 4. Mute */}
-                                        <button
-                                            onClick={handleMute}
-                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
-                                        >
-                                            <VolumeX size={18} className="text-white shrink-0" />
-                                            <span>Mute</span>
-                                        </button>
-
-                                        {/* 5. Block */}
+                                        {/* 3. Block */}
                                         <button
                                             onClick={handleBlock}
-                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
+                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
                                         >
                                             <Ban size={18} className="text-white shrink-0" />
                                             <span>Block @{tweet.author.username}</span>
-                                        </button>
-
-                                        {/* 6. View post activity */}
-                                        <button
-                                            onClick={handleViewActivity}
-                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
-                                        >
-                                            <BarChart2 size={18} className="text-white shrink-0" />
-                                            <span>View post activity</span>
-                                        </button>
-
-                                        {/* 7. Embed post */}
-                                        <button
-                                            onClick={handleEmbed}
-                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
-                                        >
-                                            <Code size={18} className="text-white shrink-0" />
-                                            <span>Embed post</span>
-                                        </button>
-
-                                        {/* 8. Report post */}
-                                        <button
-                                            onClick={handleReport}
-                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
-                                        >
-                                            <Flag size={18} className="text-white shrink-0" />
-                                            <span>Report post</span>
-                                        </button>
-
-                                        {/* 9. Request Community Note */}
-                                        <button
-                                            onClick={handleCommunityNote}
-                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
-                                        >
-                                            <Megaphone size={18} className="text-white shrink-0" />
-                                            <span>Request Community Note</span>
                                         </button>
                                     </>
                                 ) : (
@@ -564,7 +512,7 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                                         {/* Author: Delete Post */}
                                         <button
                                             onClick={handleDelete}
-                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-red-500 transition-colors hover:bg-red-500/10 cursor-pointer"
+                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[14px] font-bold text-red-500 transition-colors hover:bg-red-500/10 cursor-pointer"
                                         >
                                             <Trash2 size={18} className="text-red-500 shrink-0" />
                                             <span>Delete post</span>
@@ -573,28 +521,10 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                                         {/* Author: Pin to profile */}
                                         <button
                                             onClick={handlePin}
-                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
+                                            className="flex w-full items-center gap-3 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
                                         >
                                             <Pin size={18} className="text-white shrink-0" />
                                             <span>Pin to your profile</span>
-                                        </button>
-
-                                        {/* Author: View post activity */}
-                                        <button
-                                            onClick={handleViewActivity}
-                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
-                                        >
-                                            <BarChart2 size={18} className="text-white shrink-0" />
-                                            <span>View post activity</span>
-                                        </button>
-
-                                        {/* Author: Embed post / Copy Link */}
-                                        <button
-                                            onClick={handleEmbed}
-                                            className="flex w-full items-center gap-3.5 px-4 py-2.5 text-left text-[14px] font-bold text-white transition-colors hover:bg-white/[0.08] cursor-pointer"
-                                        >
-                                            <Code size={18} className="text-white shrink-0" />
-                                            <span>Embed post</span>
                                         </button>
                                     </>
                                 )}
@@ -668,37 +598,45 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                 )}
 
                 {/* Engagement Action Bar */}
-                <div className="flex justify-between max-w-[420px] mt-3 text-text-muted">
-                    {/* Reply */}
+                <div className="flex justify-between items-center max-w-[440px] mt-3 text-text-muted">
+                    {/* 1. Reply */}
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
                             if (onOpenReply) onOpenReply(tweet);
                             else navigate(`/tweet/${tweet.id}`);
                         }}
-                        className="flex items-center gap-1.5 text-xs hover:text-accent-blue p-1.5 rounded-full hover:bg-accent-blue/10 transition-colors cursor-pointer"
+                        className="group flex items-center gap-1.5 text-xs hover:text-accent-blue p-1.5 -ml-1.5 rounded-full hover:bg-accent-blue/10 transition-colors cursor-pointer"
                         title="Reply"
                     >
-                        <MessageCircle size={17} />
-                        <span>{tweet._count.replies || 0}</span>
+                        <MessageCircle size={17} className="group-hover:scale-105 transition-transform" />
+                        {tweet._count.replies > 0 && (
+                            <span className="text-[12px] group-hover:text-accent-blue">
+                                {formatMetricCount(tweet._count.replies)}
+                            </span>
+                        )}
                     </button>
 
-                    {/* Retweet */}
+                    {/* 2. Retweet */}
                     <button
                         onClick={handleRetweet}
-                        className={`flex items-center gap-1.5 text-xs hover:text-emerald-400 p-1.5 rounded-full hover:bg-emerald-500/10 transition-colors cursor-pointer ${
+                        className={`group flex items-center gap-1.5 text-xs hover:text-emerald-400 p-1.5 rounded-full hover:bg-emerald-500/10 transition-colors cursor-pointer ${
                             isRetweeted ? "text-emerald-400" : ""
                         }`}
                         title="Repost"
                     >
-                        <Repeat size={17} />
-                        <span>{retweetsCount}</span>
+                        <Repeat size={17} className="group-hover:scale-105 transition-transform" />
+                        {retweetsCount > 0 && (
+                            <span className="text-[12px] group-hover:text-emerald-400">
+                                {formatMetricCount(retweetsCount)}
+                            </span>
+                        )}
                     </button>
 
-                    {/* Like */}
+                    {/* 3. Like */}
                     <button
                         onClick={handleLike}
-                        className={`flex items-center gap-1.5 text-xs hover:text-pink-500 p-1.5 rounded-full hover:bg-pink-500/10 transition-colors cursor-pointer ${
+                        className={`group flex items-center gap-1.5 text-xs hover:text-pink-500 p-1.5 rounded-full hover:bg-pink-500/10 transition-colors cursor-pointer ${
                             isLiked ? "text-pink-500" : ""
                         }`}
                         title="Like"
@@ -706,14 +644,31 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                         <Heart
                             size={17}
                             fill={isLiked ? "rgb(236 72 153)" : "transparent"}
+                            className="group-hover:scale-105 transition-transform"
                         />
-                        <span>{likesCount}</span>
+                        {likesCount > 0 && (
+                            <span className="text-[12px] group-hover:text-pink-500">
+                                {formatMetricCount(likesCount)}
+                            </span>
+                        )}
                     </button>
 
-                    {/* Bookmark */}
+                    {/* 4. Views & Real-time Analytics (BarChart2) */}
+                    <button
+                        onClick={handleAnalyticsClick}
+                        className="group flex items-center gap-1.5 text-xs hover:text-accent-blue p-1.5 rounded-full hover:bg-accent-blue/10 transition-colors cursor-pointer"
+                        title={isAuthor ? "View post analytics" : `Views: ${viewsCount.toLocaleString()}`}
+                    >
+                        <BarChart2 size={17} className="group-hover:scale-105 transition-transform" />
+                        <span className="text-[12px] group-hover:text-accent-blue">
+                            {formatMetricCount(viewsCount)}
+                        </span>
+                    </button>
+
+                    {/* 5. Bookmark */}
                     <button
                         onClick={handleBookmark}
-                        className={`flex items-center gap-1.5 text-xs hover:text-accent-blue p-1.5 rounded-full hover:bg-accent-blue/10 transition-colors cursor-pointer ${
+                        className={`group flex items-center gap-1.5 text-xs hover:text-accent-blue p-1.5 rounded-full hover:bg-accent-blue/10 transition-colors cursor-pointer ${
                             isBookmarked ? "text-accent-blue" : ""
                         }`}
                         title="Bookmark"
@@ -721,20 +676,21 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                         <Bookmark
                             size={17}
                             fill={isBookmarked ? "#1d9bf0" : "transparent"}
+                            className="group-hover:scale-105 transition-transform"
                         />
                     </button>
 
-                    {/* Share */}
+                    {/* 6. Share */}
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
                             void navigator.clipboard.writeText(window.location.origin + `/tweet/${tweet.id}`);
                             showToast("Link copied to clipboard!");
                         }}
-                        className="flex items-center gap-1.5 text-xs hover:text-accent-blue p-1.5 rounded-full hover:bg-accent-blue/10 transition-colors cursor-pointer"
+                        className="group flex items-center gap-1.5 text-xs hover:text-accent-blue p-1.5 -mr-1.5 rounded-full hover:bg-accent-blue/10 transition-colors cursor-pointer"
                         title="Share"
                     >
-                        <Share2 size={16} />
+                        <Share2 size={16} className="group-hover:scale-105 transition-transform" />
                     </button>
                 </div>
             </div>
@@ -759,6 +715,9 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                 isOpen={activityModalOpen}
                 onClose={() => setActivityModalOpen(false)}
                 tweet={tweet}
+                impressions={viewsCount}
+                likesCount={likesCount}
+                retweetsCount={retweetsCount}
             />
         </article>
     );
