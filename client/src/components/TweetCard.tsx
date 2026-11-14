@@ -22,6 +22,7 @@ import { api } from "../api/client";
 import { useAuth } from "../features/auth/hooks";
 import { MediaLightboxModal } from "./MediaLightboxModal";
 import { PostActivityModal } from "./PostActivityModal";
+import { SharePostModal } from "./SharePostModal";
 import type { Tweet, TweetMediaItem } from "../types";
 
 const formatMetricCount = (count: number): string => {
@@ -80,6 +81,7 @@ export const TweetCard: React.FC<TweetCardProps> = ({
     const [isBlocked, setIsBlocked] = useState(false);
     const [isFollowing, setIsFollowing] = useState(false);
     const [activityModalOpen, setActivityModalOpen] = useState(false);
+    const [shareModalOpen, setShareModalOpen] = useState(false);
     const [toastMessage, setToastMessage] = useState<string | null>(null);
 
     const menuRef = useRef<HTMLDivElement>(null);
@@ -682,11 +684,10 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                     <button
                         onClick={(e) => {
                             e.stopPropagation();
-                            void navigator.clipboard.writeText(window.location.origin + `/tweet/${tweet.id}`);
-                            showToast("Link copied to clipboard!");
+                            setShareModalOpen(true);
                         }}
                         className="group flex items-center gap-1.5 text-xs hover:text-accent-blue p-1.5 -mr-1.5 rounded-full hover:bg-accent-blue/10 transition-colors cursor-pointer"
-                        title="Share"
+                        title="Share post"
                     >
                         <Share2 size={16} className="group-hover:scale-105 transition-transform" />
                     </button>
@@ -716,6 +717,13 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                 impressions={viewsCount}
                 likesCount={likesCount}
                 retweetsCount={retweetsCount}
+            />
+
+            {/* Share Post Modal */}
+            <SharePostModal
+                isOpen={shareModalOpen}
+                onClose={() => setShareModalOpen(false)}
+                tweet={tweet}
             />
         </article>
     );

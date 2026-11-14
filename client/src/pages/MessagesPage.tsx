@@ -503,7 +503,28 @@ export const MessagesPage: React.FC = () => {
                                         <div className={`flex items-end gap-2 ${mine ? "justify-end" : "justify-start"}`}>
                                             {!mine && lastInGroup ? <img src={message.sender?.avatarUrl || avatarFor(message.sender?.username)} alt="" className="mb-1 h-7 w-7 rounded-full object-cover" /> : !mine ? <span className="w-7 shrink-0" /> : null}
                                             <div className={`max-w-[min(78%,720px)] break-words rounded-2xl px-4 py-2.5 text-sm leading-relaxed shadow-sm ${mine ? "rounded-br-sm bg-accent-blue text-white" : "rounded-bl-sm border border-border-dark bg-surface-secondary text-text-primary"} ${grouped ? (mine ? "rounded-tr-md" : "rounded-tl-md") : ""}`}>
-                                                {message.content && <p className="whitespace-pre-wrap">{message.content}</p>}
+                                                {message.content && (
+                                                    <p className="whitespace-pre-wrap">
+                                                        {message.content.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+                                                            /^https?:\/\/[^\s]+$/.test(part) ? (
+                                                                <a
+                                                                    key={i}
+                                                                    href={part}
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                    onClick={(e) => e.stopPropagation()}
+                                                                    className={`underline break-all font-medium ${
+                                                                        mine ? "text-white hover:text-white/80" : "text-accent-blue hover:underline"
+                                                                    }`}
+                                                                >
+                                                                    {part}
+                                                                </a>
+                                                            ) : (
+                                                                part
+                                                            )
+                                                        )}
+                                                    </p>
+                                                )}
                                                 {message.mediaUrl && (isImage ? <a href={message.mediaUrl} target="_blank" rel="noreferrer"><img src={message.mediaUrl} alt="Shared photo" loading="lazy" className="mt-2 max-h-72 max-w-full rounded-xl object-contain" /></a>
                                                     : isVideo ? <video src={message.mediaUrl} controls className="mt-2 max-h-72 max-w-full rounded-xl" />
                                                         : isAudio ? <audio src={message.mediaUrl} controls className="mt-2 max-w-full" />
