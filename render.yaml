@@ -56,9 +56,9 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_URL
-        sync: false
+        value: https://sccialsphere-backend.onrender.com/api
       - key: VITE_SOCKET_URL
-        sync: false
+        value: https://sccialsphere-backend.onrender.com
       - key: VITE_RAZORPAY_KEY_ID
         sync: false
       - key: VITE_GIPHY_API_KEY
