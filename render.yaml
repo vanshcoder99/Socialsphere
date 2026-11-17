@@ -63,4 +63,7 @@ services:
         sync: false
       - key: VITE_GIPHY_API_KEY
         value: sXpGFDGZs0Dv1mmNFvYaGUvYwKX0PWIh
+      - key: VITE_OPENROUTER_API_KEY
+        sync: false
+
 
