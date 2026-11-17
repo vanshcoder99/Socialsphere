@@ -5,6 +5,7 @@ import { store } from "./store/store";
 import { AppStateBridge } from "./store/AppStateBridge";
 import { Sidebar } from "./components/Sidebar";
 import { RightSidebar } from "./components/RightSidebar";
+import { SphereAiWidget } from "./components/SphereAiWidget";
 
 // Pages
 import { FeedPage } from "./pages/FeedPage";
@@ -52,6 +53,9 @@ const MainLayout: React.FC = () => {
             {!isMessagesPage && !isFocusedPage && (
                 <RightSidebar onOpenPremiumModal={() => navigate("/plans")} />
             )}
+
+            {/* Floating Sphere AI Chatbot (Accessible on every page) */}
+            <SphereAiWidget />
         </div>
     );
 };

@@ -3,12 +3,15 @@ import { isAxiosError } from "axios";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import {
     Archive, ArrowLeft, Check, CheckCheck, CheckCircle, FileText, Loader2,
-    MessageCircle, MessageSquare, MoreVertical, Plus, Search, Send,
+    MessageCircle, MessageSquare, MoreVertical, Plus, Search, Send, Sparkles, Trash2,
 } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../features/auth/hooks";
 import { useSocket } from "../features/socket/hooks";
 import type { Conversation, DirectMessage, User } from "../types";
+import { SphereAiIcon } from "../components/SphereAiIcon";
+import { SphereAiMarkdown } from "../components/SphereAiMarkdown";
+import { useSphereAi, SPHERE_AI_PROMPTS } from "../features/sphere-ai/sphereAiStore";
 
 type SidebarView = "recent" | "followers" | "following" | "requests" | "archived";
 type Contact = Pick<User, "id" | "name" | "username" | "avatarUrl" | "isVerified"> & {
@@ -35,12 +38,180 @@ const messagePreview = (message?: DirectMessage) => {
 const sortByRecent = (items: Conversation[]) =>
     [...items].sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
+interface SphereAiChatViewProps {
+    onBack: () => void;
+}
+
+const SphereAiChatView: React.FC<SphereAiChatViewProps> = ({ onBack }) => {
+    const { messages, isLoading, sendMessage, clearMessages } = useSphereAi();
+    const [input, setInput] = useState("");
+    const endRef = useRef<HTMLDivElement | null>(null);
+
+    useEffect(() => {
+        endRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages, isLoading]);
+
+    const handleSend = (e?: React.FormEvent) => {
+        if (e) e.preventDefault();
+        const text = input.trim();
+        if (!text || isLoading) return;
+        setInput("");
+        void sendMessage(text);
+    };
+
+    return (
+        <div className="flex h-full min-h-0 min-w-0 flex-1 flex-col bg-surface-primary">
+            {/* Header */}
+            <header className="flex items-center gap-3 border-b border-border-dark bg-surface-primary px-3 py-3 sm:px-5 shrink-0">
+                <button
+                    type="button"
+                    onClick={onBack}
+                    aria-label="Back to chats"
+                    className="rounded-full p-2 text-text-secondary hover:bg-white/5 md:hidden"
+                >
+                    <ArrowLeft size={20} />
+                </button>
+                <div className="flex min-w-0 flex-1 items-center gap-3">
+                    <SphereAiIcon size={38} showPulse={isLoading} />
+                    <div className="min-w-0">
+                        <div className="flex items-center gap-1.5">
+                            <span className="font-extrabold text-white text-base">Sphere AI</span>
+                            <CheckCircle size={15} className="shrink-0 fill-accent-blue text-accent-blue" />
+                            <span className="bg-gradient-to-r from-cyan-500 to-blue-500 text-[9px] font-black text-white px-1.5 py-0.2 rounded-full uppercase tracking-wider">
+                                Assistant
+                            </span>
+                        </div>
+                        <span className="block truncate text-xs text-cyan-400 font-medium">
+                            SocialSphere Official Assistant • Powered by OpenRouter
+                        </span>
+                    </div>
+                </div>
+                <button
+                    type="button"
+                    onClick={clearMessages}
+                    className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs text-text-muted hover:text-white hover:bg-white/10 transition-colors cursor-pointer border border-border-dark/60"
+                    title="Clear Sphere AI Chat"
+                >
+                    <Trash2 size={13} />
+                    <span className="hidden sm:inline">Clear Chat</span>
+                </button>
+            </header>
+
+            {/* Messages Body */}
+            <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto bg-surface-primary p-4 sm:p-6 select-text">
+                {messages.map((m) => {
+                    const isUser = m.role === "user";
+                    return (
+                        <div
+                            key={m.id}
+                            className={`flex items-start gap-2.5 ${isUser ? "justify-end" : "justify-start"}`}
+                        >
+                            {!isUser && <SphereAiIcon size={28} className="mt-1 shrink-0" />}
+                            <div
+                                className={`max-w-[min(82%,760px)] break-words rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm ${
+                                    isUser
+                                        ? "bg-accent-blue text-white rounded-br-xs shadow-md shadow-accent-blue/15"
+                                        : m.isError
+                                        ? "bg-red-500/10 border border-red-500/30 text-red-300 rounded-bl-xs"
+                                        : "bg-surface-secondary border border-border-dark text-text-primary rounded-bl-xs"
+                                }`}
+                            >
+                                <SphereAiMarkdown content={m.content} showCopy={!isUser && !m.isError} />
+                                <div
+                                    className={`mt-1 flex items-center justify-end text-[10px] ${
+                                        isUser ? "text-white/70" : "text-text-muted"
+                                    }`}
+                                >
+                                    {new Date(m.timestamp).toLocaleTimeString([], {
+                                        hour: "2-digit",
+                                        minute: "2-digit",
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    );
+                })}
+
+                {isLoading && (
+                    <div className="flex items-start gap-2.5">
+                        <SphereAiIcon size={28} className="mt-1" showPulse />
+                        <div className="bg-surface-secondary border border-border-dark rounded-2xl rounded-bl-xs px-4 py-3 flex items-center gap-2">
+                            <Sparkles size={16} className="text-cyan-400 animate-spin" />
+                            <span className="text-xs text-text-secondary animate-pulse">
+                                Sphere AI is formulating a response...
+                            </span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Prompt suggestions if fresh conversation */}
+                {messages.length <= 2 && !isLoading && (
+                    <div className="my-2 p-3.5 bg-surface-secondary/40 border border-border-dark/60 rounded-2xl max-w-xl mx-auto w-full">
+                        <span className="text-[11px] font-bold text-text-muted uppercase tracking-wider block mb-2 text-center">
+                            Ask Sphere AI anything:
+                        </span>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            {SPHERE_AI_PROMPTS.map((p, idx) => (
+                                <button
+                                    key={idx}
+                                    type="button"
+                                    onClick={() => void sendMessage(p.prompt)}
+                                    className="text-left px-3.5 py-2.5 bg-surface-card hover:bg-surface-hover hover:border-cyan-500/40 border border-border-dark rounded-xl text-xs text-text-secondary hover:text-white transition-all cursor-pointer flex items-center justify-between group"
+                                >
+                                    <span className="truncate">{p.label}</span>
+                                    <span className="text-cyan-400 opacity-0 group-hover:opacity-100 transition-opacity ml-1 shrink-0">
+                                        →
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                <div ref={endRef} />
+            </div>
+
+            {/* Input Form */}
+            <form
+                onSubmit={handleSend}
+                className="flex items-end gap-2 border-t border-border-dark bg-surface-primary p-3 sm:px-5 sm:py-4"
+            >
+                <textarea
+                    rows={1}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSend();
+                        }
+                    }}
+                    placeholder="Message Sphere AI (ask for post ideas, platform tips, explanations...)"
+                    disabled={isLoading}
+                    maxLength={1500}
+                    className="max-h-36 min-h-11 flex-1 resize-y rounded-2xl border border-border-dark bg-surface-secondary px-4 py-3 text-sm text-text-primary placeholder:text-text-muted outline-none focus:border-cyan-500/70 disabled:opacity-70 leading-relaxed"
+                />
+                <button
+                    type="submit"
+                    disabled={!input.trim() || isLoading}
+                    aria-label="Send message to Sphere AI"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-cyan-500 to-accent-blue text-white shadow-md shadow-cyan-500/20 transition hover:brightness-110 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                    {isLoading ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} />}
+                </button>
+            </form>
+        </div>
+    );
+};
+
 export const MessagesPage: React.FC = () => {
     const { user: currentUser, loading: authLoading } = useAuth();
     const { socket, clearUnreadDMConversation } = useSocket();
     const [searchParams, setSearchParams] = useSearchParams();
     const navigate = useNavigate();
     const selectedConvId = searchParams.get("id");
+    const isSphereAiSelected = selectedConvId === "sphere-ai";
+    const { messages: sphereAiMessages } = useSphereAi();
 
     const [conversations, setConversations] = useState<Conversation[]>([]);
     const [archivedConversations, setArchivedConversations] = useState<Conversation[]>([]);
@@ -146,7 +317,7 @@ export const MessagesPage: React.FC = () => {
     }, [activeView, authLoading, currentUser, fetchMessageRequests]);
 
     const fetchMessages = useCallback(async () => {
-        if (!selectedConvId) {
+        if (!selectedConvId || selectedConvId === "sphere-ai") {
             setActiveMessages([]);
             setConversationError("");
             return;
@@ -179,6 +350,11 @@ export const MessagesPage: React.FC = () => {
     }, [selectedConvId, currentUser?.id, clearUnreadDMConversation]);
 
     useEffect(() => {
+        if (selectedConvId === "sphere-ai") {
+            setActiveMessages([]);
+            setConversationError("");
+            return;
+        }
         const timer = window.setTimeout(() => {
             void fetchMessages();
             setMessageInput("");
@@ -186,7 +362,7 @@ export const MessagesPage: React.FC = () => {
         }, 0);
         return () => {
             window.clearTimeout(timer);
-            if (socket && selectedConvId) socket.emit("leave_conversation", selectedConvId);
+            if (socket && selectedConvId && selectedConvId !== "sphere-ai") socket.emit("leave_conversation", selectedConvId);
             setIsOtherTyping(false);
             isTypingRef.current = false;
         };
@@ -425,6 +601,49 @@ export const MessagesPage: React.FC = () => {
                 </label>
 
                 <div className="min-h-0 flex-1 overflow-y-auto">
+                    {/* Special Pinned Sphere AI Chat Row in Recent View */}
+                    {activeView === "recent" && (!query || "sphere ai assistant".includes(query)) && (
+                        <div
+                            className={`group relative flex items-center gap-3 border-b border-border-dark px-3 py-3 transition cursor-pointer ${
+                                selectedConvId === "sphere-ai"
+                                    ? "bg-cyan-500/10 border-l-2 border-l-cyan-400"
+                                    : "hover:bg-white/5"
+                            }`}
+                        >
+                            <button
+                                type="button"
+                                onClick={() => setSearchParams({ id: "sphere-ai" })}
+                                className="flex min-w-0 flex-1 items-center gap-3 text-left cursor-pointer"
+                            >
+                                <div className="relative shrink-0">
+                                    <SphereAiIcon size={46} showPulse={selectedConvId === "sphere-ai"} />
+                                    <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-emerald-400 border-2 border-surface-primary rounded-full" />
+                                </div>
+                                <span className="min-w-0 flex-1">
+                                    <span className="flex items-center gap-1.5 truncate font-extrabold text-text-primary text-sm">
+                                        <span>Sphere AI</span>
+                                        <CheckCircle size={14} className="shrink-0 fill-accent-blue text-accent-blue" />
+                                        <span className="bg-gradient-to-r from-cyan-500 to-blue-500 text-[9px] font-black text-white px-1.5 py-0.2 rounded-full uppercase tracking-wider">
+                                            AI
+                                        </span>
+                                    </span>
+                                    <span className="mt-0.5 block truncate text-[11px] text-cyan-400 font-medium">
+                                        @sphere_ai • Official Assistant
+                                    </span>
+                                    <span className="mt-1 block truncate text-xs text-text-secondary">
+                                        {sphereAiMessages.length > 1
+                                            ? sphereAiMessages[sphereAiMessages.length - 1].content.replace(/[*#`_]/g, "").slice(0, 48) + "..."
+                                            : "Always online • Ask me anything"}
+                                    </span>
+                                </span>
+                                <span className="flex shrink-0 flex-col items-end gap-1 self-stretch pt-1">
+                                    <span className="text-[10px] font-bold text-cyan-400 bg-cyan-400/10 border border-cyan-400/30 px-1.5 py-0.5 rounded-full">
+                                        AI
+                                    </span>
+                                </span>
+                            </button>
+                        </div>
+                    )}
                     {activeView === "followers" || activeView === "following" ? (
                         !currentUser ? <div className="p-6 text-center"><p className="mb-4 text-sm text-text-secondary">Sign in to view your {activeView}.</p><button type="button" onClick={() => navigate("/auth")} className="rounded-full bg-accent-blue px-4 py-2 text-sm font-bold text-white">Sign in</button></div>
                             : loadingContacts ? <div className="flex justify-center py-10"><Loader2 size={22} className="animate-spin text-accent-blue" /></div>
@@ -471,7 +690,9 @@ export const MessagesPage: React.FC = () => {
             </aside>
 
             <section className={`flex min-h-0 min-w-0 flex-1 flex-col bg-surface-primary ${selectedConvId ? "flex" : "hidden md:flex"}`}>
-                {selectedConvId && activeUser && !conversationError ? <>
+                {isSphereAiSelected ? (
+                    <SphereAiChatView onBack={() => setSearchParams({})} />
+                ) : selectedConvId && activeUser && !conversationError ? <>
                     <header className="flex items-center gap-3 border-b border-border-dark bg-surface-primary px-3 py-3 sm:px-5">
                         <button type="button" onClick={() => setSearchParams({})} aria-label="Back to chats" className="rounded-full p-2 text-text-secondary hover:bg-white/5 md:hidden"><ArrowLeft size={20} /></button>
                         <button type="button" onClick={() => navigate(`/profile/${activeUser.username}`)} className="flex min-w-0 flex-1 items-center gap-3 text-left">

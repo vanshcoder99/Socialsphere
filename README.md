@@ -26,10 +26,11 @@
 - [Key Features](#-key-features)
   - [Rich Post Composer](#1-rich-post-composer)
   - [AI Post Assistant](#2-ai-post-assistant-openrouter-llm)
-  - [Monetization & Plans](#3-monetization--plans-razorpay)
-  - [Real-Time Messaging & Notifications](#4-real-time-messaging--notifications)
-  - [Privacy & Social Graph](#5-privacy--social-graph)
-  - [Authentication & Security](#6-authentication--security)
+  - [Sphere AI Chatbot](#3-sphere-ai-chatbot-openrouter-llm)
+  - [Monetization & Plans](#4-monetization--plans-razorpay)
+  - [Real-Time Messaging & Notifications](#5-real-time-messaging--notifications)
+  - [Privacy & Social Graph](#6-privacy--social-graph)
+  - [Authentication & Security](#7-authentication--security)
 - [Design System](#-design-system)
 - [Tech Stack](#-tech-stack)
 - [Project Architecture](#-project-architecture)
@@ -73,7 +74,13 @@ Powered by server-side OpenRouter API integration:
 - **Hashtag Recommendation**: Generates trending, context-aware hashtags.
 - **Credit-Gated Quotas**: Enforces plan-based AI credit limits with monthly auto-resets.
 
-### 3. Monetization & Plans (Razorpay)
+### 3. Sphere AI Chatbot (OpenRouter LLM)
+- **Universal Floating Assistant**: Available on every page through an animated, glowing floating Sphere AI logo button that expands into a sleek AI assistant window.
+- **Dedicated Messages Workspace Integration**: Pinned official conversation inside the `/messages` page with live prompt chips, Markdown rendering, and copy actions.
+- **Project-Specific Knowledge**: Answers platform questions, brainstorms viral post ideas, explains subscription plans & character quotas, and offers growth strategies.
+- **Persistent Synchronization**: Real-time cross-tab and cross-page state synchronization so your chat is always preserved.
+
+### 4. Monetization & Plans (Razorpay)
 - **Tiered Plans**:
   - **Free (₹0/mo)**: 20 AI credits, 280 characters/post, basic suggestions.
   - **Plus (₹199/mo)**: 300 AI credits, 2,000 characters/post, verified blue badge, advanced AI tones.
@@ -84,17 +91,17 @@ Powered by server-side OpenRouter API integration:
   - HMAC-SHA256 signature verification, webhook reconciliation, and automated entitlement updates.
 - **Billing Dashboard**: Track current cycle dates, credit consumption gauges, and detailed transaction receipts.
 
-### 4. Real-Time Messaging & Notifications
+### 5. Real-Time Messaging & Notifications
 - **Direct Messaging (DMs)**: 1-on-1 private messaging powered by **Socket.IO** with live typing indicators and instant unread count sync.
 - **Access Control**: Strict mutual-follow permission checks prevent unsolicited DMs.
 - **Instant Alerts**: Real-time notification badges for likes, reposts, replies, mentions, and follow requests.
 
-### 5. Privacy & Social Graph
+### 6. Privacy & Social Graph
 - **Public vs. Private Profiles**: Toggle account privacy to require manual review for incoming follow requests.
 - **Follow Request Workflow**: Pending requests panel to accept or decline followers.
 - **Blocking & Protection**: Instant transactional cleanup when blocking users (removes follow links, hides posts and conversations).
 
-### 6. Authentication & Security
+### 7. Authentication & Security
 - **Dual Auth Providers**: Email/Password (salted bcrypt hashes) and Google Sign-In (Firebase Admin).
 - **JWT Architecture**: Short-lived access tokens with HTTP-only, secure refresh token rotation cookies.
 - **Reverse Proxy Ready**: Configured with `trust proxy` and cross-site CORS for seamless production deployment behind cloud proxies.

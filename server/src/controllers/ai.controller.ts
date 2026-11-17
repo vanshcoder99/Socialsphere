@@ -2,6 +2,7 @@ import type { Response } from "express";
 import type { AuthenticatedRequest } from "../middleware/auth.middleware.js";
 import { consumeAICredit, getCachedAIResponse, requireAIEntitlement } from "../lib/entitlements.js";
 import type { AIAction } from "../lib/plan-config.js";
+import { prisma } from "../index.js";
 
 // In-memory sliding-window rate limiter per user (max 20 requests per 60 seconds)
 const userRateLimits = new Map<string, number[]>();
@@ -56,6 +57,63 @@ async function callOpenRouter(systemPrompt: string, userMessage: string, maxToke
             max_tokens: maxTokens,
         }),
         signal: AbortSignal.timeout(20000), // 20-second timeout
+    });
+
+    const data: any = await response.json().catch(() => null);
+
+    if (!response.ok) {
+        const errorMsg = data?.error?.message || `OpenRouter API error (${response.status})`;
+        const error: any = new Error(errorMsg);
+        error.statusCode = response.status === 401 ? 401 : response.status === 429 ? 429 : 502;
+        throw error;
+    }
+
+    const choice = data?.choices?.[0]?.message?.content?.trim();
+    if (!choice) {
+        const error: any = new Error("OpenRouter returned an empty completion response.");
+        error.statusCode = 502;
+        throw error;
+    }
+
+    return {
+        rawContent: choice,
+        model: data?.model || model,
+        provider: "OpenRouter",
+        tokensUsed: data?.usage?.total_tokens || 0,
+    };
+}
+
+async function callOpenRouterChat(
+    messages: Array<{ role: "system" | "user" | "assistant"; content: string }>,
+    maxTokens = 650
+) {
+    const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+    if (!apiKey) {
+        const error: any = new Error(
+            "OPENROUTER_API_KEY is not configured in backend environment variables."
+        );
+        error.statusCode = 503;
+        throw error;
+    }
+
+    const model = process.env.OPENROUTER_MODEL?.trim() || "openai/gpt-4o-mini";
+    const clientUrl = process.env.CLIENT_URL?.trim() || "http://localhost:5173";
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+            Authorization: `Bearer ${apiKey}`,
+            "HTTP-Referer": clientUrl,
+            "X-Title": "SocialSphere",
+            "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+            model,
+            messages,
+            temperature: 0.7,
+            max_tokens: maxTokens,
+        }),
+        signal: AbortSignal.timeout(30000),
     });
 
     const data: any = await response.json().catch(() => null);
@@ -290,3 +348,126 @@ Strict constraints:
 };
 
 export const suggestPost = suggestTweet;
+
+// ==========================================
+// 4. SPHERE AI CHATBOT (OPENROUTER LLM)
+// ==========================================
+const chatRateLimits = new Map<string, number[]>();
+const CHAT_RATE_LIMIT_WINDOW_MS = 60 * 1000;
+const MAX_CHAT_REQUESTS_PER_WINDOW = 30;
+
+const checkChatRateLimit = (key: string): boolean => {
+    const now = Date.now();
+    const timestamps = (chatRateLimits.get(key) || []).filter(
+        (t) => now - t < CHAT_RATE_LIMIT_WINDOW_MS
+    );
+    if (timestamps.length >= MAX_CHAT_REQUESTS_PER_WINDOW) {
+        chatRateLimits.set(key, timestamps);
+        return false;
+    }
+    timestamps.push(now);
+    chatRateLimits.set(key, timestamps);
+    return true;
+};
+
+export const sphereChat = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const userId = req.user?.userId;
+        const rateLimitKey = userId || (req.headers["x-forwarded-for"] as string) || req.socket.remoteAddress || "anonymous";
+        if (!checkChatRateLimit(rateLimitKey)) {
+            return res.status(429).json({
+                error: "You are sending messages to Sphere AI too fast. Please take a breath and try again in a moment.",
+            });
+        }
+
+        const { message, history = [] } = req.body;
+
+        if (!message || typeof message !== "string" || message.trim().length === 0) {
+            return res.status(400).json({ error: "Message cannot be empty." });
+        }
+
+        if (message.trim().length > 1500) {
+            return res.status(400).json({ error: "Message exceeds maximum length of 1,500 characters." });
+        }
+
+        let userContext = "The user is currently browsing SocialSphere as a guest.";
+        if (userId) {
+            try {
+                const userRecord = await prisma.user.findUnique({
+                    where: { id: userId },
+                    select: {
+                        username: true,
+                        name: true,
+                        isVerified: true,
+                        subscription: { select: { tier: true, status: true } },
+                    },
+                });
+                if (userRecord) {
+                    const tier = userRecord.subscription?.tier || "FREE";
+                    userContext = `The user is logged in as @${userRecord.username}${userRecord.name ? ` (${userRecord.name})` : ""}, subscription tier: ${tier}, verified: ${userRecord.isVerified}.`;
+                }
+            } catch {
+                // non-blocking
+            }
+        }
+
+        const systemPrompt = `You are Sphere AI, the intelligent, charismatic, and versatile AI assistant for SocialSphere — the modern next-generation social communication platform with Obsidian Dark design, real-time feeds, rich media, and AI tools.
+
+Context on Current User:
+${userContext}
+
+Knowledge Base of SocialSphere:
+- Posts & Feeds: Users can publish posts up to their tier's limit, attach up to 4 images, videos, or trending GIFs (via GIPHY), like, repost, bookmark, and reply in threaded conversations.
+- Search & Discovery: Instant search for #hashtags (e.g. #tech, #design), @usernames, or user IDs with live autocomplete in the search bar.
+- Subscription Plans & AI Quotas:
+  * Free Plan (₹0/mo): 20 AI credits/mo, 280 characters per post, basic suggestions.
+  * Plus Plan (₹199/mo): 300 AI credits/mo, 2,000 characters per post, Verified Blue badge, enhanced AI capabilities.
+  * Pro Plan (₹499/mo): 1,000 AI credits/mo, 10,000 characters per post, Verified Blue badge, smart idea expansion & priority queue.
+- AI Assistant in Composer: OpenRouter-powered tools for "Improve Post", "Fix Grammar", "Expand Idea", "3 Alternatives", "Viral Hook", and context-aware hashtags.
+- Direct Messaging: Real-time 1-on-1 private messaging with typing indicators, delivery checkmarks, and unread sync.
+- Privacy & Safety: Public vs. Private account options, follow requests panel, and instant transactional blocking.
+
+Your Personality & Response Style:
+- Persona: You are Sphere AI. You are knowledgeable, friendly, witty, encouraging, and clear.
+- Assistance: You can answer anything about SocialSphere features, brainstorm post ideas, write viral hooks, review drafts, suggest hashtags, give growth strategies, or chat conversationally about tech, coding, creative writing, or general questions.
+- Formatting: Format responses cleanly with Markdown (bullet points, bold highlights, code blocks if asked). Keep your answers helpful and concise unless the user asks for a comprehensive guide or longer draft.
+- Never refer to SocialSphere as a clone or mention Twitter/X unless the user specifically asks for a comparison. You are proudly Sphere AI on SocialSphere!`;
+
+        const formattedMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+            { role: "system", content: systemPrompt },
+        ];
+
+        if (Array.isArray(history)) {
+            const recentHistory = history.slice(-8);
+            for (const h of recentHistory) {
+                if (h && typeof h.content === "string" && (h.role === "user" || h.role === "assistant")) {
+                    formattedMessages.push({
+                        role: h.role,
+                        content: h.content.slice(0, 1500),
+                    });
+                }
+            }
+        }
+
+        formattedMessages.push({
+            role: "user",
+            content: message.trim(),
+        });
+
+        const llmResult = await callOpenRouterChat(formattedMessages, 650);
+
+        return res.status(200).json({
+            reply: llmResult.rawContent,
+            model: llmResult.model,
+            provider: llmResult.provider,
+            tokensUsed: llmResult.tokensUsed,
+            timestamp: new Date().toISOString(),
+        });
+    } catch (error: any) {
+        console.error("Sphere AI chat error:", error.message);
+        const statusCode = error.statusCode || 500;
+        return res.status(statusCode).json({
+            error: error.message || "Sphere AI is currently busy. Please try asking again in a moment.",
+        });
+    }
+};
