@@ -456,7 +456,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ onOpenPremiumModal }
                     <span className="font-extrabold text-base">SocialSphere Premium</span>
                 </div>
                 <p className="text-xs text-text-secondary leading-relaxed">
-                    Subscribe to unlock up to <strong>10,000 character tweets</strong>, blue verification badge, and priority AI suggestions.
+                    Subscribe to unlock up to <strong>10,000 character posts</strong>, blue verification badge, and priority AI suggestions.
                 </p>
                 <button
                     onClick={onOpenPremiumModal}

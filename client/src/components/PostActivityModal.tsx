@@ -234,7 +234,7 @@ export const PostActivityModal: React.FC<PostActivityModalProps> = ({
 
                     <div className="flex items-center justify-between text-sm py-1.5 border-b border-border-dark/60">
                         <span className="flex items-center gap-2.5 text-text-secondary">
-                            <Repeat size={16} className="text-emerald-400" /> Reposts / Retweets
+                            <Repeat size={16} className="text-emerald-400" /> Reposts
                         </span>
                         <strong className="text-white font-bold">{retweets.toLocaleString()}</strong>
                     </div>

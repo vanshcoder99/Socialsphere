@@ -73,6 +73,9 @@ export interface Tweet {
     replies?: Tweet[];
 }
 
+export type Post = Tweet;
+export type PostMediaItem = TweetMediaItem;
+
 export interface NotificationItem {
     id: string;
     type: "LIKE" | "RETWEET" | "FOLLOW" | "FOLLOW_REQUEST" | "FOLLOW_REQUEST_ACCEPTED" | "FOLLOW_REQUEST_REJECTED" | "REPLY";

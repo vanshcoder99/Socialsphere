@@ -175,7 +175,7 @@ export const NotificationsPage: React.FC = () => {
                                     console.error("Mark single read error:", err);
                                 }
                             }
-                            if (n.tweet?.id) navigate(`/tweet/${n.tweet.id}`);
+                            if (n.tweet?.id) navigate(`/post/${n.tweet.id}`);
                             else navigate(`/profile/${n.sourceUser.username}`);
                         }}
                         className={`flex gap-3.5 px-5 py-4 border-b border-border-dark transition-colors cursor-pointer ${

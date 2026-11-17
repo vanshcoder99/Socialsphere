@@ -115,7 +115,7 @@ export const toggleLike = async (req: AuthenticatedRequest, res: Response) => {
         }
         if (error.code === "P2025") {
             // Concurrency: like already removed
-            return res.status(200).json({ message: "Unliked tweet", isLiked: false });
+            return res.status(200).json({ message: "Unliked post", isLiked: false });
         }
         console.error("Error in toggleLike:", error);
         return res.status(500).json({ error: "Internal server error" });
@@ -136,7 +136,7 @@ export const toggleRetweet = async (req: AuthenticatedRequest, res: Response) =>
         }
 
         if (!tweetId) {
-            return res.status(400).json({ error: "Tweet ID is required" });
+            return res.status(400).json({ error: "Post ID is required" });
         }
 
         if (quoteContent !== undefined && quoteContent !== null) {
@@ -155,7 +155,7 @@ export const toggleRetweet = async (req: AuthenticatedRequest, res: Response) =>
         });
 
         if (!tweet) {
-            return res.status(404).json({ error: "Tweet not found" });
+            return res.status(404).json({ error: "Post not found" });
         }
 
         const access = await getUserContentAccess(userId, tweet.authorId);
@@ -196,8 +196,9 @@ export const toggleRetweet = async (req: AuthenticatedRequest, res: Response) =>
             });
 
             return res.status(200).json({
-                message: "Un-retweeted",
+                message: "Un-reposted",
                 isRetweeted: false,
+                isReposted: false,
             });
         }
 
@@ -245,8 +246,9 @@ export const toggleRetweet = async (req: AuthenticatedRequest, res: Response) =>
         }
 
         return res.status(200).json({
-            message: quoteContent ? "Quote posted" : "Retweeted",
+            message: quoteContent ? "Quote posted" : "Reposted",
             isRetweeted: true,
+            isReposted: true,
         });
     } catch (error: any) {
         if (error.code === "P2002") {
@@ -437,6 +439,7 @@ export const getUserBookmarks = async (req: AuthenticatedRequest, res: Response)
         }));
 
         return res.status(200).json({
+            posts: formattedTweets,
             tweets: formattedTweets,
             pagination: {
                 offset,

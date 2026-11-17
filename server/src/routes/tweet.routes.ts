@@ -47,6 +47,7 @@ router.post("/:parentTweetId/reply", authenticateToken as any, createReply);
 
 // Social Engagements
 router.post("/:tweetId/like", authenticateToken as any, toggleLike);
+router.post("/:tweetId/repost", authenticateToken as any, toggleRetweet);
 router.post("/:tweetId/retweet", authenticateToken as any, toggleRetweet);
 router.post("/:tweetId/bookmark", authenticateToken as any, toggleBookmark);
 

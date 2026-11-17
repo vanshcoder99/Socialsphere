@@ -2,9 +2,9 @@
 
 <div align="center">
 
-![SocialSphere Banner](https://img.shields.io/badge/SocialSphere-Obsidian%20Dark-1d9bf0?style=for-the-badge&logo=twitter&logoColor=white)
+![SocialSphere Banner](https://img.shields.io/badge/SocialSphere-Obsidian%20Dark-1d9bf0?style=for-the-badge&logoColor=white)
 
-**A modern, production-grade X (Twitter) social network clone built with React 19, Express 5, TypeScript, Prisma 7, and Neon PostgreSQL.**
+**A modern, production-grade social communication and network platform built with React 19, Express 5, TypeScript, Prisma 7, and Neon PostgreSQL.**
 
 [![React 19](https://img.shields.io/badge/React-19-61dafb?style=flat-square&logo=react&logoColor=black)](https://react.dev/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178c6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -24,8 +24,8 @@
 
 - [Overview](#-overview)
 - [Key Features](#-key-features)
-  - [Rich Tweet Composer](#1-rich-tweet-composer)
-  - [AI Tweet Assistant](#2-ai-tweet-assistant-openrouter-llm)
+  - [Rich Post Composer](#1-rich-post-composer)
+  - [AI Post Assistant](#2-ai-post-assistant-openrouter-llm)
   - [Monetization & Plans](#3-monetization--plans-razorpay)
   - [Real-Time Messaging & Notifications](#4-real-time-messaging--notifications)
   - [Privacy & Social Graph](#5-privacy--social-graph)
@@ -46,7 +46,7 @@
 
 ## 🌟 Overview
 
-**SocialSphere** is a full-featured, responsive social media platform inspired by X (Twitter). It combines real-time communication, rich media handling, tiered subscription billing, and real LLM AI suggestions into a cohesive Obsidian Dark aesthetic.
+**SocialSphere** is a full-featured, responsive next-generation social communication platform. It combines real-time communication, rich media handling, tiered subscription billing, and real LLM AI suggestions into a cohesive Obsidian Dark aesthetic.
 
 Engineered with modern architecture principles:
 - **No TanStack Query / External Cache Bloat**: Fast, reliable React state management with Axios interceptors, silent token refresh, and manual state synchronization.
@@ -57,16 +57,16 @@ Engineered with modern architecture principles:
 
 ## ✨ Key Features
 
-### 1. Rich Tweet Composer
+### 1. Rich Post Composer
 - **Multi-Media Grid Layouts**: Adaptive 1-image (full width), 2-image (2 columns), 3-image (1 + 2 stacked), and 4-image ($2 \times 2$ grid) displays with standard aspect ratios.
 - **Emoji Picker**: Integrated popover picker (`emoji-picker-react`) with cursor-position insertion, search, and category navigation.
 - **GIPHY Integration**: Search and embed trending GIFs directly into posts with lightweight previews and provider attribution.
 - **Cloudinary Uploads**: High-speed image and video processing with server-side signature validation and format verification.
-- **Threads & Engagements**: In-line replies, nested thread tree views, retweets, quote tweets, likes, and bookmarks.
+- **Threads & Engagements**: In-line replies, nested thread tree views, reposts, quote posts, likes, and bookmarks.
 
-### 2. AI Tweet Assistant (OpenRouter LLM)
+### 2. AI Post Assistant (OpenRouter LLM)
 Powered by server-side OpenRouter API integration:
-- **Improve Tweet**: Rewrites drafts for engagement and clarity while preserving tone.
+- **Improve Post**: Rewrites drafts for engagement and clarity while preserving tone.
 - **Grammar & Spell Check**: Fixes punctuation and syntax instantly.
 - **Tone Variations**: Switch between Professional, Casual, Friendly, Humorous, Engaging, and Viral styles.
 - **Smart Expansion**: Expands bullet points or thoughts into detailed, well-structured posts.
@@ -87,7 +87,7 @@ Powered by server-side OpenRouter API integration:
 ### 4. Real-Time Messaging & Notifications
 - **Direct Messaging (DMs)**: 1-on-1 private messaging powered by **Socket.IO** with live typing indicators and instant unread count sync.
 - **Access Control**: Strict mutual-follow permission checks prevent unsolicited DMs.
-- **Instant Alerts**: Real-time notification badges for likes, retweets, replies, mentions, and follow requests.
+- **Instant Alerts**: Real-time notification badges for likes, reposts, replies, mentions, and follow requests.
 
 ### 5. Privacy & Social Graph
 - **Public vs. Private Profiles**: Toggle account privacy to require manual review for incoming follow requests.
@@ -111,7 +111,7 @@ SocialSphere uses an **Obsidian Dark** color identity:
 | **Primary Surface** | `#13171f` | `bg-surface-primary` |
 | **Secondary Surface** | `#1e2430` | `bg-surface-secondary` |
 | **Surface Hover** | `#283040` | `bg-surface-hover` |
-| **Primary Accent (Twitter Blue)** | `#1d9bf0` | `text-accent-blue` / `bg-accent-blue` |
+| **Primary Accent (Brand Blue)** | `#1d9bf0` | `text-accent-blue` / `bg-accent-blue` |
 | **Premium Accent (Violet)** | `#c084fc` | `text-premium-violet` / `bg-premium-violet` |
 | **Primary Text** | `#ffffff` | `text-text-primary` |
 | **Secondary Text** | `#94a3b8` | `text-text-secondary` |
@@ -146,7 +146,7 @@ SocialSphere uses an **Obsidian Dark** color identity:
 ## 📂 Project Architecture
 
 ```
-x-clone/
+Socialsphere/
 ├── client/                     # Frontend Application (React 19 + Vite)
 │   ├── public/                 # Static assets & icons
 │   ├── src/
@@ -194,7 +194,7 @@ x-clone/
 
 1. **Navigate to the server directory**:
    ```bash
-   cd x-clone/server
+   cd server
    ```
 
 2. **Install dependencies**:
@@ -301,7 +301,7 @@ x-clone/
 
 ## ☁️ Deployment on Render
 
-SocialSphere includes a ready-to-use [`render.yaml`](file:///c:/Users/hp/Desktop/p2/x-clone/render.yaml) specification to deploy both frontend and backend separately on [Render](https://render.com).
+SocialSphere includes a ready-to-use [`render.yaml`](./render.yaml) specification to deploy both frontend and backend separately on [Render](https://render.com).
 
 ### Manual Dashboard Deployment
 
@@ -333,7 +333,7 @@ SocialSphere includes a ready-to-use [`render.yaml`](file:///c:/Users/hp/Desktop
 The backend includes comprehensive automated unit and integration tests:
 
 ```bash
-cd x-clone/server
+cd server
 
 # Test billing primitives, INR paise conversion, grapheme limits & HMAC signatures
 npm run test:billing-unit
@@ -341,7 +341,7 @@ npm run test:billing-unit
 # Test authentication & token refresh
 npm run test:auth
 
-# Test tweet threads, replies & quote tweets
+# Test post threads, replies & quote posts
 npm run test:tweets
 
 # Test direct message real-time delivery & access control

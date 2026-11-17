@@ -362,7 +362,7 @@ export const TweetCard: React.FC<TweetCardProps> = ({
         });
     };
 
-    // Hidden post view (Twitter/X style with Undo & Dismiss)
+    // Hidden post view (with Undo & Dismiss)
     if (isHidden) {
         return (
             <div className="flex items-center justify-between px-4 py-3.5 border-b border-border-dark bg-surface-primary/40 text-sm text-text-secondary animate-in fade-in duration-150">
@@ -412,7 +412,7 @@ export const TweetCard: React.FC<TweetCardProps> = ({
     return (
         <article
             className="tweet-card relative flex gap-3 px-4 py-3.5 border-b border-border-dark hover:bg-white/[0.02] cursor-pointer transition-colors"
-            onClick={() => navigate(`/tweet/${tweet.id}`)}
+            onClick={() => navigate(`/post/${tweet.id}`)}
         >
             {/* Author Avatar */}
             <img
@@ -604,7 +604,7 @@ export const TweetCard: React.FC<TweetCardProps> = ({
                         onClick={(e) => {
                             e.stopPropagation();
                             if (onOpenReply) onOpenReply(tweet);
-                            else navigate(`/tweet/${tweet.id}`);
+                            else navigate(`/post/${tweet.id}`);
                         }}
                         className="group flex items-center gap-1.5 text-xs hover:text-accent-blue p-1.5 -ml-1.5 rounded-full hover:bg-accent-blue/10 transition-colors cursor-pointer"
                         title="Reply"
@@ -728,3 +728,5 @@ export const TweetCard: React.FC<TweetCardProps> = ({
         </article>
     );
 };
+
+export { TweetCard as PostCard };

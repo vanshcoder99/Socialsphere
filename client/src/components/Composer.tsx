@@ -80,7 +80,7 @@ type AiAction =
     | "hashtags";
 
 const AI_CAPABILITIES: { id: AiAction; label: string; icon: string }[] = [
-    { id: "improve", label: "Improve Tweet", icon: "✨" },
+    { id: "improve", label: "Improve Post", icon: "✨" },
     { id: "grammar", label: "Fix Grammar", icon: "✍️" },
     { id: "expand", label: "Expand Idea", icon: "🧵" },
     { id: "alternatives", label: "3 Alternatives", icon: "🔀" },
@@ -554,7 +554,7 @@ export const Composer: React.FC<ComposerProps> = ({
                     mediaUrl: validMedia[0]?.url || null,
                     mediaType: validMedia[0]?.mediaType || null,
                 }, { timeout: 90000 });
-                onTweetPosted(data.reply);
+                onTweetPosted(data.reply || data.post || data.tweet);
             } else {
                 // Root tweet
                 const { data } = await api.post("/tweets", {
@@ -563,7 +563,7 @@ export const Composer: React.FC<ComposerProps> = ({
                     mediaUrl: validMedia[0]?.url || null,
                     mediaType: validMedia[0]?.mediaType || null,
                 }, { timeout: 90000 });
-                onTweetPosted(data.tweet);
+                onTweetPosted(data.post || data.tweet);
             }
 
             attachments.forEach((attachment) => {
@@ -1106,7 +1106,7 @@ export const Composer: React.FC<ComposerProps> = ({
                                             onClick={handleAppendAllHashtags}
                                             className="w-full py-1.5 px-3 bg-accent-blue/15 hover:bg-accent-blue/25 text-accent-blue border border-accent-blue/30 rounded-xl text-xs font-bold transition-colors cursor-pointer"
                                         >
-                                            Append All Hashtags to Tweet
+                                            Append All Hashtags to Post
                                         </button>
                                     </div>
                                 ) : aiAction === "alternatives" && aiSuggestions.length > 1 ? (
@@ -1188,7 +1188,7 @@ export const Composer: React.FC<ComposerProps> = ({
                                         className="px-5 py-2 rounded-full bg-accent-blue hover:bg-accent-blue-hover text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-accent-blue/25 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                                     >
                                         <Check size={14} />
-                                        <span>Apply to Tweet</span>
+                                        <span>Apply to Post</span>
                                     </button>
                                 )}
                             </div>

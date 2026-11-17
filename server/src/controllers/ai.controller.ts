@@ -127,10 +127,10 @@ export const suggestTweet = async (req: AuthenticatedRequest, res: Response) => 
         const characterLimit = entitlements.maxPostCharacters;
 
         let systemPrompt = `You are SocialSphere AI, an expert social media writing assistant powered by OpenRouter.
-Your job is to generate a high quality post for SocialSphere (an X/Twitter platform).
+Your job is to generate a high quality post for SocialSphere.
 Strict constraints:
 - Must be no more than ${characterLimit} characters.
-- Return ONLY the final tweet text.
+- Return ONLY the final post text.
 - Do NOT wrap the output in quotes.
 - Do NOT include any explanations, introductions (like 'Here is:'), or conversational commentary.`;
 
@@ -162,7 +162,7 @@ Strict constraints:
             case "alternatives":
                 isMultipleAlternatives = true;
                 systemPrompt = `You are SocialSphere AI, an expert social media writing assistant powered by OpenRouter.
-Generate exactly 3 distinct, creative variations of the user's tweet idea (e.g., one bold & punchy, one conversational, one insightful).
+Generate exactly 3 distinct, creative variations of the user's post idea (e.g., one bold & punchy, one conversational, one insightful).
 Strict constraints:
 - Each variation must be no more than ${characterLimit} characters.
 - Format strictly as:
@@ -241,7 +241,7 @@ export const suggestHashtags = async (req: AuthenticatedRequest, res: Response) 
         const { content } = req.body;
 
         if (!content || typeof content !== "string" || content.trim().length === 0) {
-            return res.status(400).json({ error: "Tweet content is required" });
+            return res.status(400).json({ error: "Post content is required" });
         }
 
         if (content.trim().length > 500) {
@@ -259,7 +259,7 @@ export const suggestHashtags = async (req: AuthenticatedRequest, res: Response) 
         }
 
         const systemPrompt = `You are SocialSphere AI.
-Analyze the user's tweet and suggest 4 to 6 relevant, high-traffic, trending hashtags.
+Analyze the user's post and suggest 4 to 6 relevant, high-traffic, trending hashtags.
 Strict constraints:
 - Output ONLY the hashtags separated by space (e.g. #Tech #AI #WebDev #BuildInPublic).
 - Do not include numbering, explanations, or any other words.`;
@@ -288,3 +288,5 @@ Strict constraints:
         });
     }
 };
+
+export const suggestPost = suggestTweet;

@@ -22,7 +22,7 @@ export const TweetDetailPage: React.FC = () => {
 
             try {
                 const { data } = await api.get(`/tweets/${id}`);
-                setTweet(data.tweet);
+                setTweet(data.post || data.tweet);
             } catch (err) {
                 console.error("Error fetching tweet thread:", err);
             } finally {
@@ -115,3 +115,5 @@ export const TweetDetailPage: React.FC = () => {
         </main>
     );
 };
+
+export { TweetDetailPage as PostDetailPage };

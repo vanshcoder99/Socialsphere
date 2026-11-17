@@ -80,6 +80,7 @@ app.use(cookieParser());
 // Mount API Routers
 app.use("/api/auth", authRouter);
 app.use("/api/users", userRouter);
+app.use("/api/posts", tweetRouter);
 app.use("/api/tweets", tweetRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/notifications", notificationRouter);

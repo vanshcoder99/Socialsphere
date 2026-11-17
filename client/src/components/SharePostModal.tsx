@@ -512,14 +512,14 @@ export const SharePostModal: React.FC<SharePostModalProps> = ({
                             <span className="text-[11px] text-text-secondary group-hover:text-sky-400">Telegram</span>
                         </button>
 
-                        {/* X / Twitter */}
+                        {/* External Web Share */}
                         <button
                             onClick={shareToTwitter}
                             className="flex flex-col items-center justify-center p-2 rounded-2xl bg-surface-secondary border border-border-dark hover:bg-white/10 hover:border-white/30 hover:text-white transition-colors text-xs font-semibold cursor-pointer group"
-                            title="Share on X"
+                            title="Share externally"
                         >
-                            <span className="text-base mb-0.5 font-bold">𝕏</span>
-                            <span className="text-[11px] text-text-secondary group-hover:text-white">Post to X</span>
+                            <span className="text-base mb-0.5 font-bold">🌐</span>
+                            <span className="text-[11px] text-text-secondary group-hover:text-white">Share</span>
                         </button>
 
                         {/* System Share / More */}

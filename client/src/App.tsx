@@ -35,6 +35,7 @@ const MainLayout: React.FC = () => {
             <Routes>
                 <Route path="/" element={<FeedPage />} />
                 <Route path="/profile/:username" element={<ProfilePage onOpenPremiumModal={() => navigate("/plans")} />} />
+                <Route path="/post/:id" element={<TweetDetailPage />} />
                 <Route path="/tweet/:id" element={<TweetDetailPage />} />
                 <Route path="/explore" element={<ExplorePage />} />
                 <Route path="/bookmarks" element={<BookmarksPage />} />

@@ -71,7 +71,7 @@ const validateAndProcessMedia = async (
             return { error: { status: 400, message: "Media must be an array of media objects" } };
         }
         if (rawMedia.length > 4) {
-            return { error: { status: 400, message: "Cannot attach more than 4 media files per tweet" } };
+            return { error: { status: 400, message: "Cannot attach more than 4 media files per post" } };
         }
 
         const processed: Array<{ url: string; publicId: string | null; mediaType: "IMAGE" | "VIDEO" | "GIF" }> = [];
@@ -239,7 +239,7 @@ export const createTweet = async (req: AuthenticatedRequest, res: Response) => {
         }
 
         if (!content || typeof content !== "string" || content.trim().length === 0) {
-            return res.status(400).json({ error: "Tweet content cannot be empty" });
+            return res.status(400).json({ error: "Post content cannot be empty" });
         }
 
         const [user, entitlements, mediaValidation] = await Promise.all([
@@ -269,16 +269,18 @@ export const createTweet = async (req: AuthenticatedRequest, res: Response) => {
         // Idempotency: If this media was already successfully attached in a previous attempt
         if (mediaValidation.alreadyCreatedTweet) {
             const existingTweet = mediaValidation.alreadyCreatedTweet;
+            const formatted = {
+                ...existingTweet,
+                media: formatTweetMedia(existingTweet),
+                hashtags: existingTweet.hashtags.map((h: any) => h.hashtag.tag),
+                isLiked: false,
+                isRetweeted: false,
+                isBookmarked: false,
+            };
             return res.status(200).json({
-                message: "Tweet posted successfully",
-                tweet: {
-                    ...existingTweet,
-                    media: formatTweetMedia(existingTweet),
-                    hashtags: existingTweet.hashtags.map((h: any) => h.hashtag.tag),
-                    isLiked: false,
-                    isRetweeted: false,
-                    isBookmarked: false,
-                },
+                message: "Post created successfully",
+                post: formatted,
+                tweet: formatted,
             });
         }
 
@@ -366,16 +368,18 @@ export const createTweet = async (req: AuthenticatedRequest, res: Response) => {
 
         const authorPrivacy = await prisma.user.findUnique({ where: { id: userId }, select: { isPrivate: true } });
         if (!authorPrivacy?.isPrivate) broadcastNewTweet(tweet);
+        const formattedNewPost = {
+            ...tweet,
+            media: formatTweetMedia(tweet),
+            hashtags: tweet.hashtags.map((h) => h.hashtag.tag),
+            isLiked: false,
+            isRetweeted: false,
+            isBookmarked: false,
+        };
         return res.status(201).json({
-            message: "Tweet posted successfully",
-            tweet: {
-                ...tweet,
-                media: formatTweetMedia(tweet),
-                hashtags: tweet.hashtags.map((h) => h.hashtag.tag),
-                isLiked: false,
-                isRetweeted: false,
-                isBookmarked: false,
-            },
+            message: "Post created successfully",
+            post: formattedNewPost,
+            tweet: formattedNewPost,
         });
     } catch (error) {
         if (error instanceof Error && error.message === "PENDING_MEDIA_CONFLICT") {
@@ -529,6 +533,7 @@ export const getTimelineFeed = async (req: AuthenticatedRequest, res: Response) 
         const hasPrevPage = page > 1;
 
         return res.status(200).json({
+            posts: formattedTweets,
             tweets: formattedTweets,
             pagination: {
                 page,
@@ -557,7 +562,7 @@ export const getTweetById = async (req: AuthenticatedRequest, res: Response) => 
         const activeUserId = currentUserId || "";
 
         if (!id) {
-            return res.status(400).json({ error: "Tweet ID is required" });
+            return res.status(400).json({ error: "Post ID is required" });
         }
 
         const tweet = await prisma.tweet.findUnique({
@@ -624,12 +629,12 @@ export const getTweetById = async (req: AuthenticatedRequest, res: Response) => 
         });
 
         if (!tweet) {
-            return res.status(404).json({ error: "Tweet not found" });
+            return res.status(404).json({ error: "Post not found" });
         }
 
         const access = await getUserContentAccess(currentUserId, tweet.author.id);
         if (!access.allowed) {
-            return res.status(403).json({ error: access.blocked ? "Cannot view tweet from a blocked user" : "This account is private. Follow to see its posts." });
+            return res.status(403).json({ error: access.blocked ? "Cannot view post from a blocked user" : "This account is private. Follow to see its posts." });
         }
 
         let repliesToInclude = tweet.replies;
@@ -680,24 +685,27 @@ export const getTweetById = async (req: AuthenticatedRequest, res: Response) => 
             isBookmarked: Boolean(currentUserId && r.bookmarks.length > 0),
         }));
 
+        const formattedTweetResult = {
+            id: tweet.id,
+            content: tweet.content,
+            mediaUrl: tweet.mediaUrl,
+            mediaType: tweet.mediaType,
+            media: formatTweetMedia(tweet),
+            views: currentViews,
+            createdAt: tweet.createdAt,
+            updatedAt: tweet.updatedAt,
+            author: tweet.author,
+            hashtags: tweet.hashtags.map((h) => h.hashtag.tag),
+            _count: tweet._count,
+            isLiked: Boolean(currentUserId && tweet.likes.length > 0),
+            isRetweeted: Boolean(currentUserId && tweet.retweets.length > 0),
+            isBookmarked: Boolean(currentUserId && tweet.bookmarks.length > 0),
+            replies: formattedReplies,
+        };
+
         return res.status(200).json({
-            tweet: {
-                id: tweet.id,
-                content: tweet.content,
-                mediaUrl: tweet.mediaUrl,
-                mediaType: tweet.mediaType,
-                media: formatTweetMedia(tweet),
-                views: currentViews,
-                createdAt: tweet.createdAt,
-                updatedAt: tweet.updatedAt,
-                author: tweet.author,
-                hashtags: tweet.hashtags.map((h) => h.hashtag.tag),
-                _count: tweet._count,
-                isLiked: Boolean(currentUserId && tweet.likes.length > 0),
-                isRetweeted: Boolean(currentUserId && tweet.retweets.length > 0),
-                isBookmarked: Boolean(currentUserId && tweet.bookmarks.length > 0),
-                replies: formattedReplies,
-            },
+            post: formattedTweetResult,
+            tweet: formattedTweetResult,
         });
     } catch (error) {
         console.error("Error in getTweetById:", error);
@@ -719,7 +727,7 @@ export const createReply = async (req: AuthenticatedRequest, res: Response) => {
         }
 
         if (!parentTweetId) {
-            return res.status(400).json({ error: "Parent tweet ID required" });
+            return res.status(400).json({ error: "Parent post ID required" });
         }
 
         if (!content || typeof content !== "string" || content.trim().length === 0) {
@@ -732,7 +740,7 @@ export const createReply = async (req: AuthenticatedRequest, res: Response) => {
         });
 
         if (!parentTweet) {
-            return res.status(404).json({ error: "Parent tweet not found" });
+            return res.status(404).json({ error: "Parent post not found" });
         }
 
         const parentAccess = await getUserContentAccess(userId, parentTweet.authorId);
@@ -768,16 +776,19 @@ export const createReply = async (req: AuthenticatedRequest, res: Response) => {
         }
         if (mediaValidation.alreadyCreatedTweet) {
             const existing = mediaValidation.alreadyCreatedTweet;
+            const formattedExistingReply = {
+                ...existing,
+                media: formatTweetMedia(existing),
+                hashtags: (existing.hashtags || []).map((h: any) => h.hashtag?.tag || h),
+                isLiked: false,
+                isRetweeted: false,
+                isBookmarked: false,
+            };
             return res.status(200).json({
                 message: "Reply already posted",
-                reply: {
-                    ...existing,
-                    media: formatTweetMedia(existing),
-                    hashtags: (existing.hashtags || []).map((h: any) => h.hashtag?.tag || h),
-                    isLiked: false,
-                    isRetweeted: false,
-                    isBookmarked: false,
-                },
+                reply: formattedExistingReply,
+                post: formattedExistingReply,
+                tweet: formattedExistingReply,
             });
         }
         const { processedMedia, primaryMediaUrl, primaryMediaType } = mediaValidation.result!;
@@ -883,16 +894,20 @@ export const createReply = async (req: AuthenticatedRequest, res: Response) => {
             });
         }
 
+        const formattedNewReply = {
+            ...reply,
+            media: formatTweetMedia(reply),
+            hashtags: reply.hashtags.map((h) => h.hashtag.tag),
+            isLiked: false,
+            isRetweeted: false,
+            isBookmarked: false,
+        };
+
         return res.status(201).json({
             message: "Reply posted successfully",
-            reply: {
-                ...reply,
-                media: formatTweetMedia(reply),
-                hashtags: reply.hashtags.map((h) => h.hashtag.tag),
-                isLiked: false,
-                isRetweeted: false,
-                isBookmarked: false,
-            },
+            reply: formattedNewReply,
+            post: formattedNewReply,
+            tweet: formattedNewReply,
         });
     } catch (error) {
         if (error instanceof Error && error.message === "PENDING_MEDIA_CONFLICT") {
@@ -916,7 +931,7 @@ export const deleteTweet = async (req: AuthenticatedRequest, res: Response) => {
         }
 
         if (!id) {
-            return res.status(400).json({ error: "Tweet ID is required" });
+            return res.status(400).json({ error: "Post ID is required" });
         }
 
         const tweet = await prisma.tweet.findUnique({
@@ -925,14 +940,14 @@ export const deleteTweet = async (req: AuthenticatedRequest, res: Response) => {
         });
 
         if (!tweet) {
-            return res.status(404).json({ error: "Tweet not found" });
+            return res.status(404).json({ error: "Post not found" });
         }
 
         if (tweet.authorId !== userId) {
-            return res.status(403).json({ error: "You are not authorized to delete this tweet" });
+            return res.status(403).json({ error: "You are not authorized to delete this post" });
         }
 
-        // Clean up Cloudinary assets associated with this tweet
+        // Clean up Cloudinary assets associated with this post
         if (tweet.media && tweet.media.length > 0) {
             for (const item of tweet.media) {
                 if (item.publicId) {
@@ -945,7 +960,7 @@ export const deleteTweet = async (req: AuthenticatedRequest, res: Response) => {
             }
         }
 
-        // Cleanly disassociate child replies before deleting parent tweet to avoid foreign-key constraint failure
+        // Cleanly disassociate child replies before deleting parent post to avoid foreign-key constraint failure
         await prisma.$transaction(async (tx) => {
             await tx.tweet.updateMany({
                 where: { parentTweetId: id },
@@ -957,7 +972,7 @@ export const deleteTweet = async (req: AuthenticatedRequest, res: Response) => {
             });
         });
 
-        return res.status(200).json({ message: "Tweet deleted successfully" });
+        return res.status(200).json({ message: "Post deleted successfully" });
     } catch (error) {
         console.error("Error in deleteTweet:", error);
         return res.status(500).json({ error: "Internal server error" });
@@ -1008,6 +1023,7 @@ export const getUserTweets = async (req: AuthenticatedRequest, res: Response) =>
             });
             if (block) {
                 return res.status(200).json({
+                    posts: [],
                     tweets: [],
                     pagination: {
                         page: 1,
@@ -1089,6 +1105,7 @@ export const getUserTweets = async (req: AuthenticatedRequest, res: Response) =>
         const hasPrevPage = page > 1;
 
         return res.status(200).json({
+            posts: formattedTweets,
             tweets: formattedTweets,
             pagination: {
                 page,
@@ -1155,6 +1172,7 @@ export const getTweetsByHashtag = async (req: AuthenticatedRequest, res: Respons
 
         if (!hashtagRecord) {
             return res.status(200).json({
+                posts: [],
                 tweets: [],
                 pagination: {
                     page: 1,
@@ -1238,6 +1256,7 @@ export const getTweetsByHashtag = async (req: AuthenticatedRequest, res: Respons
         const hasPrevPage = page > 1;
 
         return res.status(200).json({
+            posts: formattedTweets,
             tweets: formattedTweets,
             pagination: {
                 page,
