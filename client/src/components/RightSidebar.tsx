@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Search, Sparkles, TrendingUp, CheckCircle, Loader2, UserPlus, Check } from "lucide-react";
+import { Search, Sparkles, TrendingUp, CheckCircle, Loader2, UserPlus, Check, Hash, X } from "lucide-react";
 import { api } from "../api/client";
 import { useAuth } from "../features/auth/hooks";
 import type { User, TrendingTopic } from "../types";
@@ -13,7 +13,10 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ onOpenPremiumModal }
     const { user: currentUser } = useAuth();
     const [searchQuery, setSearchQuery] = useState("");
     const [searchResults, setSearchResults] = useState<User[]>([]);
+    const [searchHashtags, setSearchHashtags] = useState<TrendingTopic[]>([]);
     const [isSearching, setIsSearching] = useState(false);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const searchContainerRef = useRef<HTMLDivElement>(null);
     const [trends, setTrends] = useState<TrendingTopic[]>([]);
     const [trendsLoading, setTrendsLoading] = useState(false);
     const [suggestedUsers, setSuggestedUsers] = useState<User[]>([]);
@@ -24,15 +27,37 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ onOpenPremiumModal }
     const navigate = useNavigate();
 
     useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", handleClickOutside);
+        return () => document.removeEventListener("mousedown", handleClickOutside);
+    }, []);
+
+    useEffect(() => {
         const delayDebounce = setTimeout(async () => {
-            if (!searchQuery.trim()) {
+            const trimmed = searchQuery.trim();
+            if (!trimmed) {
                 setSearchResults([]);
+                setSearchHashtags([]);
+                setIsSearching(false);
+                setIsDropdownOpen(false);
                 return;
             }
+
+            const clean = trimmed.replace(/^[@#]/, "").trim();
             setIsSearching(true);
+            setIsDropdownOpen(true);
+
             try {
-                const { data } = await api.get(`/users/search?q=${encodeURIComponent(searchQuery)}`);
-                setSearchResults(data.users || []);
+                const [userRes, hashtagRes] = await Promise.all([
+                    api.get(`/users/search?q=${encodeURIComponent(clean || trimmed)}`),
+                    api.get(`/tweets/search/hashtags?q=${encodeURIComponent(clean || trimmed)}`),
+                ]);
+                setSearchResults(userRes.data?.users || []);
+                setSearchHashtags(hashtagRes.data?.hashtags || []);
             } catch (err) {
                 console.error("Search error:", err);
             } finally {
@@ -96,7 +121,40 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ onOpenPremiumModal }
     const handleSelectUser = (username: string) => {
         setSearchQuery("");
         setSearchResults([]);
+        setSearchHashtags([]);
+        setIsDropdownOpen(false);
         navigate(`/profile/${username}`);
+    };
+
+    const handleSelectHashtag = (tag: string) => {
+        const clean = tag.replace(/^#/, "").trim();
+        setSearchQuery("");
+        setSearchResults([]);
+        setSearchHashtags([]);
+        setIsDropdownOpen(false);
+        navigate(`/explore?tag=${encodeURIComponent(clean)}`);
+    };
+
+    const handleSearchSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const trimmed = searchQuery.trim();
+        if (!trimmed) return;
+
+        const clean = trimmed.replace(/^[@#]/, "").trim();
+        setIsDropdownOpen(false);
+        setSearchQuery("");
+        setSearchResults([]);
+        setSearchHashtags([]);
+
+        if (trimmed.startsWith("@")) {
+            navigate(`/profile/${encodeURIComponent(clean)}`);
+        } else if (trimmed.startsWith("#")) {
+            navigate(`/explore?tag=${encodeURIComponent(clean)}`);
+        } else if (searchResults.length > 0 && searchHashtags.length === 0) {
+            navigate(`/profile/${searchResults[0].username}`);
+        } else {
+            navigate(`/explore?tag=${encodeURIComponent(clean)}`);
+        }
     };
 
     const handleToggleFollow = async (e: React.MouseEvent, targetUser: User) => {
@@ -128,63 +186,147 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ onOpenPremiumModal }
     return (
         <aside className="right-sidebar hidden xl:flex w-[350px] h-full overflow-y-auto overflow-x-hidden pt-3 px-5 pb-28 flex-col gap-5 flex-shrink-0 overscroll-contain">
             {/* Search Input with Autocomplete */}
-            <div className="sticky top-0 z-20 bg-black pt-1 pb-2">
-                <div className="relative">
-                    {isSearching ? (
-                        <Loader2
-                            size={18}
-                            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-accent-blue animate-spin"
+            <div id="search-section" ref={searchContainerRef} className="sticky top-0 z-20 bg-black pt-1 pb-2">
+                <form id="search-form" onSubmit={handleSearchSubmit}>
+                    <div className="relative">
+                        {isSearching ? (
+                            <Loader2
+                                size={18}
+                                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-accent-blue animate-spin"
+                            />
+                        ) : (
+                            <Search
+                                size={18}
+                                className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
+                            />
+                        )}
+                        <input
+                            id="search-input"
+                            type="text"
+                            placeholder="Search SocialSphere (#tags, @users, ids)"
+                            value={searchQuery}
+                            onFocus={() => {
+                                if (searchQuery.trim()) setIsDropdownOpen(true);
+                            }}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full bg-surface-card border border-border-dark rounded-full py-2.5 pl-10 pr-9 text-sm text-text-primary placeholder:text-text-muted focus:border-accent-blue focus:bg-black focus:outline-none focus:ring-1 focus:ring-accent-blue transition-all"
                         />
-                    ) : (
-                        <Search
-                            size={18}
-                            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-text-muted"
-                        />
-                    )}
-                    <input
-                        type="text"
-                        placeholder="Search SocialSphere"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-surface-card border border-border-dark rounded-full py-2.5 pl-10 pr-4 text-sm text-text-primary placeholder:text-text-muted focus:border-accent-blue focus:bg-black focus:outline-none focus:ring-1 focus:ring-accent-blue transition-all"
-                    />
-                </div>
+                        {searchQuery && (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setSearchQuery("");
+                                    setSearchResults([]);
+                                    setSearchHashtags([]);
+                                    setIsDropdownOpen(false);
+                                }}
+                                className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-white p-1 rounded-full hover:bg-white/10 transition-colors cursor-pointer"
+                                title="Clear search"
+                            >
+                                <X size={15} />
+                            </button>
+                        )}
+                    </div>
+                </form>
 
                 {/* Autocomplete Dropdown */}
-                {searchResults.length > 0 && (
-                    <div className="absolute top-13 left-0 right-0 bg-surface-card border border-border-dark rounded-2xl shadow-2xl z-50 overflow-hidden">
-                        {searchResults.map((u) => (
-                            <div
-                                key={u.id}
-                                onClick={() => handleSelectUser(u.username)}
-                                className="flex items-center gap-3 px-3.5 py-2.5 cursor-pointer border-b border-border-dark hover:bg-white/5 transition-colors"
-                            >
-                                <img
-                                    src={
-                                        u.avatarUrl ||
-                                        `https://api.dicebear.com/7.x/identicon/svg?seed=${u.username}`
-                                    }
-                                    alt={u.username}
-                                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                                />
-                                <div className="min-w-0">
-                                    <div className="flex items-center gap-1">
-                                        <span className="font-bold text-sm text-text-primary truncate">
-                                            {u.username}
-                                        </span>
-                                        {u.isVerified && (
-                                            <CheckCircle
-                                                size={13}
-                                                className="text-accent-blue fill-accent-blue flex-shrink-0"
-                                            />
-                                        )}
-                                    </div>
-                                    <span className="text-xs text-text-secondary truncate block">
-                                        @{u.username}
-                                    </span>
-                                </div>
+                {isDropdownOpen && searchQuery.trim().length > 0 && (
+                    <div
+                        id="search-autocomplete-dropdown"
+                        className="absolute top-13 left-0 right-0 bg-surface-card border border-border-dark rounded-2xl shadow-2xl z-50 overflow-hidden max-h-[380px] overflow-y-auto"
+                    >
+                        {/* Quick Direct Hashtag Search Action */}
+                        <div
+                            onClick={() => handleSelectHashtag(searchQuery.trim().replace(/^[@#]/, ""))}
+                            className="flex items-center gap-3 px-3.5 py-2.5 cursor-pointer border-b border-border-dark hover:bg-white/5 transition-colors group"
+                        >
+                            <div className="w-8 h-8 rounded-full bg-accent-blue/15 flex items-center justify-center text-accent-blue flex-shrink-0 group-hover:bg-accent-blue group-hover:text-white transition-colors">
+                                <Hash size={16} />
                             </div>
-                        ))}
+                            <div className="min-w-0">
+                                <span className="font-bold text-sm text-text-primary group-hover:text-accent-blue transition-colors truncate block">
+                                    Search for #{searchQuery.trim().replace(/^[@#]/, "")}
+                                </span>
+                                <span className="text-[0.72rem] text-text-secondary truncate block">
+                                    Explore posts with this hashtag
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Hashtag Results Section */}
+                        {searchHashtags.length > 0 && (
+                            <div>
+                                <div className="px-3.5 pt-2 pb-1 text-[0.68rem] font-black uppercase tracking-wider text-text-muted bg-surface-secondary/40 border-b border-border-dark/60">
+                                    Hashtags
+                                </div>
+                                {searchHashtags.map((h) => (
+                                    <div
+                                        key={h.id || h.tag}
+                                        onClick={() => handleSelectHashtag(h.tag)}
+                                        className="flex items-center justify-between px-3.5 py-2 cursor-pointer border-b border-border-dark/40 hover:bg-white/5 transition-colors group"
+                                    >
+                                        <div className="flex items-center gap-2.5 min-w-0">
+                                            <div className="w-7 h-7 rounded-full bg-white/5 flex items-center justify-center text-accent-blue flex-shrink-0">
+                                                <Hash size={14} />
+                                            </div>
+                                            <span className="font-bold text-sm text-text-primary group-hover:text-accent-blue group-hover:underline truncate">
+                                                #{h.tag}
+                                            </span>
+                                        </div>
+                                        <span className="text-xs text-text-muted flex-shrink-0">
+                                            {h.tweetCount} {h.tweetCount === 1 ? "post" : "posts"}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {/* User / ID Results Section */}
+                        {searchResults.length > 0 && (
+                            <div>
+                                <div className="px-3.5 pt-2 pb-1 text-[0.68rem] font-black uppercase tracking-wider text-text-muted bg-surface-secondary/40 border-b border-border-dark/60">
+                                    Accounts & IDs
+                                </div>
+                                {searchResults.map((u) => (
+                                    <div
+                                        key={u.id}
+                                        onClick={() => handleSelectUser(u.username)}
+                                        className="flex items-center gap-3 px-3.5 py-2.5 cursor-pointer border-b border-border-dark/40 hover:bg-white/5 transition-colors group"
+                                    >
+                                        <img
+                                            src={
+                                                u.avatarUrl ||
+                                                `https://api.dicebear.com/7.x/identicon/svg?seed=${u.username}`
+                                            }
+                                            alt={u.username}
+                                            className="w-8 h-8 rounded-full object-cover flex-shrink-0 bg-surface-secondary border border-border-dark"
+                                        />
+                                        <div className="min-w-0 flex-1">
+                                            <div className="flex items-center gap-1">
+                                                <span className="font-bold text-sm text-text-primary group-hover:underline truncate">
+                                                    {u.username}
+                                                </span>
+                                                {u.isVerified && (
+                                                    <CheckCircle
+                                                        size={13}
+                                                        className="text-accent-blue fill-accent-blue flex-shrink-0"
+                                                    />
+                                                )}
+                                            </div>
+                                            <span className="text-xs text-text-secondary truncate block">
+                                                @{u.username}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+
+                        {searchHashtags.length === 0 && searchResults.length === 0 && !isSearching && (
+                            <div className="p-3 text-center text-xs text-text-muted">
+                                Press Enter to search posts for "{searchQuery}"
+                            </div>
+                        )}
                     </div>
                 )}
             </div>
