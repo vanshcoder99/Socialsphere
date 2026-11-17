@@ -8,6 +8,7 @@ import {
     getUserTweets,
     getTweetsByHashtag,
     getTrendingHashtags,
+    searchHashtags,
     recordTweetView,
     recordBatchTweetViews,
 } from "../controllers/tweet.controller.js";
@@ -27,6 +28,7 @@ const router = Router();
 // Feed & Discovery
 router.get("/feed", optionalAuthenticateToken as any, getTimelineFeed);
 router.get("/trending", optionalAuthenticateToken as any, getTrendingHashtags);
+router.get("/search/hashtags", optionalAuthenticateToken as any, searchHashtags);
 router.get("/hashtag/:tag", optionalAuthenticateToken as any, getTweetsByHashtag);
 router.get("/user/:username", optionalAuthenticateToken as any, getUserTweets);
 router.get("/bookmarks", authenticateToken as any, getUserBookmarks);

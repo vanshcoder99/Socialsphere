@@ -463,11 +463,12 @@ export const unblockUser = async (req: AuthenticatedRequest, res: Response) => {
 // ==========================================
 export const searchUsers = async (req: AuthenticatedRequest, res: Response) => {
     try {
-        const query = req.query.q as string;
+        const rawQuery = (req.query.q as string) || "";
+        const cleanQuery = rawQuery.replace(/^[@#]/, "").trim();
         const currentUserId = req.user?.userId;
         const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 20);
 
-        if (!query || query.trim() === "") {
+        if (!cleanQuery) {
             return res.status(200).json({ users: [] });
         }
 
@@ -490,8 +491,9 @@ export const searchUsers = async (req: AuthenticatedRequest, res: Response) => {
                 AND: [
                     {
                         OR: [
-                            { username: { contains: query.trim(), mode: "insensitive" } },
-                            { bio: { contains: query.trim(), mode: "insensitive" } },
+                            { username: { contains: cleanQuery, mode: "insensitive" } },
+                            { bio: { contains: cleanQuery, mode: "insensitive" } },
+                            { id: { equals: cleanQuery } },
                         ],
                     },
                     ...(blockedUserIds.length > 0 ? [{ id: { notIn: blockedUserIds } }] : []),

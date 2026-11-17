@@ -1316,6 +1316,76 @@ export const getTrendingHashtags = async (req: AuthenticatedRequest, res: Respon
 };
 
 // ==========================================
+// 8b. SEARCH HASHTAGS
+// ==========================================
+export const searchHashtags = async (req: AuthenticatedRequest, res: Response) => {
+    try {
+        const query = req.query.q as string;
+        const currentUserId = req.user?.userId;
+        const limit = Math.min(Math.max(Number(req.query.limit) || 8, 1), 20);
+
+        if (!query || query.trim() === "") {
+            return res.status(200).json({ hashtags: [] });
+        }
+
+        const cleanTag = query.trim().replace(/^#/, "").toLowerCase();
+        if (!cleanTag) {
+            return res.status(200).json({ hashtags: [] });
+        }
+
+        let blockedUserIds: string[] = [];
+        if (currentUserId) {
+            const blocks = await prisma.block.findMany({
+                where: {
+                    OR: [{ blockerId: currentUserId }, { blockedId: currentUserId }],
+                },
+                select: { blockerId: true, blockedId: true },
+            });
+            blockedUserIds = blocks.map((b) => (b.blockerId === currentUserId ? b.blockedId : b.blockerId));
+        }
+
+        const visibleHashtagTweet = {
+            AND: [
+                visibleTweetWhere(currentUserId),
+                ...(blockedUserIds.length > 0 ? [{ authorId: { notIn: blockedUserIds } }] : []),
+            ],
+        };
+
+        const hashtags = await prisma.hashtag.findMany({
+            where: {
+                tag: { contains: cleanTag, mode: "insensitive" },
+            },
+            select: {
+                id: true,
+                tag: true,
+                _count: {
+                    select: {
+                        tweets: { where: { tweet: visibleHashtagTweet } },
+                    },
+                },
+            },
+            orderBy: {
+                tweets: {
+                    _count: "desc",
+                },
+            },
+            take: limit,
+        });
+
+        const formatted = hashtags.map((h) => ({
+            id: h.id,
+            tag: h.tag,
+            tweetCount: h._count.tweets,
+        }));
+
+        return res.status(200).json({ hashtags: formatted });
+    } catch (error) {
+        console.error("Error in searchHashtags:", error);
+        return res.status(500).json({ error: "Internal server error" });
+    }
+};
+
+// ==========================================
 // 8. RECORD REAL-TIME TWEET VIEW (PERSISTENT & REAL-TIME)
 // ==========================================
 export const recordTweetView = async (req: Request, res: Response) => {
