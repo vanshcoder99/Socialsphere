@@ -34,7 +34,7 @@ export const SphereAiMarkdown: React.FC<SphereAiMarkdownProps> = ({
                     return (
                         <pre
                             key={`code-${lineIdx}`}
-                            className="my-2 p-2.5 bg-black/60 border border-white/10 rounded-xl text-xs font-mono text-cyan-300 overflow-x-auto"
+                            className="my-2 p-2.5 bg-surface-primary border border-border-dark rounded-xl text-xs font-mono text-cyan-600 dark:text-cyan-300 overflow-x-auto"
                         >
                             <code>{code}</code>
                         </pre>
@@ -60,7 +60,7 @@ export const SphereAiMarkdown: React.FC<SphereAiMarkdownProps> = ({
             }
             if (line.startsWith("## ")) {
                 return (
-                    <h3 key={lineIdx} className="font-extrabold text-base text-text-primary mt-2.5 mb-1 text-cyan-300">
+                    <h3 key={lineIdx} className="font-extrabold text-base text-accent-blue mt-2.5 mb-1">
                         {renderInline(line.replace("## ", ""))}
                     </h3>
                 );
@@ -111,7 +111,7 @@ export const SphereAiMarkdown: React.FC<SphereAiMarkdownProps> = ({
         return parts.map((part, i) => {
             if (part.startsWith("**") && part.endsWith("**")) {
                 return (
-                    <strong key={i} className="font-bold text-text-primary text-white">
+                    <strong key={i} className="font-bold text-text-primary">
                         {part.slice(2, -2)}
                     </strong>
                 );
@@ -120,7 +120,7 @@ export const SphereAiMarkdown: React.FC<SphereAiMarkdownProps> = ({
                 return (
                     <code
                         key={i}
-                        className="px-1.5 py-0.5 bg-white/10 rounded font-mono text-[11px] text-cyan-300"
+                        className="px-1.5 py-0.5 bg-black/10 dark:bg-white/10 rounded font-mono text-[11px] text-cyan-600 dark:text-cyan-300"
                     >
                         {part.slice(1, -1)}
                     </code>

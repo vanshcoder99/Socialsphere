@@ -75,7 +75,7 @@ const SphereAiChatView: React.FC<SphereAiChatViewProps> = ({ onBack }) => {
                     <SphereAiIcon size={38} showPulse={isLoading} />
                     <div className="min-w-0">
                         <div className="flex items-center gap-1.5">
-                            <span className="font-extrabold text-white text-base">Sphere AI</span>
+                            <span className="font-extrabold text-text-primary text-base">Sphere AI</span>
                             <CheckCircle size={15} className="shrink-0 fill-accent-blue text-accent-blue" />
                             <span className="bg-gradient-to-r from-cyan-500 to-blue-500 text-[9px] font-black text-white px-1.5 py-0.2 rounded-full uppercase tracking-wider">
                                 Assistant

@@ -21,6 +21,10 @@ export const SphereAiWidget: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
 
+    const isMessagesPage = location.pathname.startsWith("/messages");
+    const isFocusedPage = ["/plans", "/settings/billing", "/settings", "/help"].includes(location.pathname);
+    const hasRightSidebar = !isMessagesPage && !isFocusedPage;
+
     // If user is already on /messages?id=sphere-ai, auto-minimize floating widget
     const isAlreadyInSphereAiMessagePage =
         location.pathname === "/messages" && new URLSearchParams(location.search).get("id") === "sphere-ai";
@@ -63,7 +67,11 @@ export const SphereAiWidget: React.FC = () => {
     return (
         <aside
             aria-label="Sphere AI Assistant"
-            className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 flex flex-col items-end select-none"
+            className={`fixed z-50 flex flex-col items-end transition-all duration-300 select-none ${
+                hasRightSidebar
+                    ? "bottom-20 right-4 sm:bottom-6 sm:right-6 xl:right-[370px] 2xl:right-[400px]"
+                    : "bottom-20 right-4 sm:bottom-6 sm:right-6"
+            }`}
         >
             {/* Expanded Floating Chatbot Window */}
             {isOpen && (
@@ -74,7 +82,7 @@ export const SphereAiWidget: React.FC = () => {
                             <SphereAiIcon size={30} showPulse={isLoading} />
                             <div>
                                 <div className="flex items-center gap-1.5">
-                                    <span className="font-extrabold text-sm text-white tracking-tight">
+                                    <span className="font-extrabold text-sm text-text-primary tracking-tight">
                                         Sphere AI
                                     </span>
                                     <span className="bg-gradient-to-r from-cyan-500 to-blue-500 text-[9px] font-black text-white px-1.5 py-0.2 rounded-full uppercase tracking-wider">
@@ -243,29 +251,30 @@ export const SphereAiWidget: React.FC = () => {
                 </div>
             )}
 
-            {/* Small Floating Circular Sphere AI Logo Button */}
+            {/* High-Visibility Floating Sphere AI Logo Button */}
             {!isOpen && (
                 <button
                     type="button"
                     onClick={() => setIsOpen(true)}
-                    className="group relative flex items-center gap-2 p-3 sm:px-4 sm:py-3 rounded-full bg-black/90 hover:bg-surface-primary border border-cyan-500/40 hover:border-cyan-400 shadow-xl shadow-cyan-500/25 hover:shadow-cyan-400/40 backdrop-blur-xl transition-all duration-300 active:scale-95 cursor-pointer"
+                    className="group relative flex items-center gap-2.5 px-4 py-3 rounded-full bg-surface-card hover:bg-surface-hover text-text-primary border-2 border-cyan-400 dark:border-cyan-400/80 hover:border-cyan-300 shadow-2xl shadow-cyan-500/35 hover:shadow-cyan-400/50 backdrop-blur-xl transition-all duration-300 hover:scale-105 active:scale-95 cursor-pointer ring-2 ring-cyan-500/25 ring-offset-2 ring-offset-surface-primary"
                     title="Open Sphere AI Chatbot"
                     aria-label="Open Sphere AI Chatbot"
                 >
                     {/* Glowing outer pulse aura */}
-                    <div className="absolute inset-0 rounded-full bg-cyan-400/15 animate-ping -z-10 opacity-75" />
+                    <div className="absolute inset-0 rounded-full bg-cyan-400/20 animate-ping -z-10 opacity-75" />
 
                     {/* Logo Icon */}
-                    <SphereAiIcon size={28} />
+                    <SphereAiIcon size={30} showPulse />
 
-                    {/* Text Label on larger screens */}
-                    <span className="hidden sm:inline font-extrabold text-xs text-white tracking-tight group-hover:text-cyan-300 transition-colors">
+                    {/* Clear Text Label */}
+                    <span className="font-extrabold text-sm text-text-primary tracking-tight group-hover:text-cyan-400 transition-colors">
                         Sphere AI
                     </span>
 
-                    {/* Subtle AI Sparkle Badge */}
-                    <span className="hidden sm:inline-flex items-center gap-0.5 text-[9px] font-bold bg-gradient-to-r from-cyan-500 to-blue-500 text-white px-1.5 py-0.5 rounded-full uppercase tracking-wider">
-                        AI
+                    {/* Gradient AI Badge with Sparkle */}
+                    <span className="inline-flex items-center gap-1 text-[10px] font-black bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-500 text-white px-2 py-0.5 rounded-full uppercase tracking-wider shadow-sm">
+                        <Sparkles size={11} className="animate-spin text-cyan-200" />
+                        <span>Ask AI</span>
                     </span>
                 </button>
             )}
