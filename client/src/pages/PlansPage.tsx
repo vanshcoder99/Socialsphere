@@ -137,7 +137,7 @@ export const PlansPage = () => {
 
     return (
         <main className="billing-workspace flex-1 min-w-0 h-full overflow-y-auto border-x border-border-dark bg-black px-4 py-6 sm:px-7 lg:px-10">
-            <div className="mx-auto w-full max-w-6xl">
+            <div className="mx-auto w-full max-w-7xl">
                 <header className="mb-8 flex flex-wrap items-end justify-between gap-4">
                     <div>
                         <p className="mb-2 inline-flex items-center gap-2 rounded-full border border-premium-violet/30 bg-premium-violet/10 px-3 py-1 text-xs font-semibold text-premium-violet"><Sparkles size={14} /> SocialSphere Plans</p>

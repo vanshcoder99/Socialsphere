@@ -184,7 +184,7 @@ export const RightSidebar: React.FC<RightSidebarProps> = ({ onOpenPremiumModal }
     };
 
     return (
-        <aside className="right-sidebar hidden xl:flex w-[350px] h-full overflow-y-auto overflow-x-hidden pt-3 px-5 pb-28 flex-col gap-5 flex-shrink-0 overscroll-contain">
+        <aside className="right-sidebar hidden xl:flex w-[350px] 2xl:w-[380px] h-full overflow-y-auto overflow-x-hidden pt-3 px-4 xl:px-5 pb-28 flex-col gap-5 flex-shrink-0 overscroll-contain">
             {/* Search Input with Autocomplete */}
             <div id="search-section" ref={searchContainerRef} className="sticky top-0 z-20 bg-black pt-1 pb-2">
                 <form id="search-form" onSubmit={handleSearchSubmit}>

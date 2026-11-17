@@ -134,7 +134,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }, [user, location.pathname]);
 
     return (
-        <aside className="left-sidebar fixed bottom-0 left-0 right-0 z-50 h-[58px] w-full border-t border-border-dark bg-black/95 backdrop-blur-lg flex flex-row items-center justify-around px-2 md:static md:z-auto md:w-[78px] xl:w-[275px] md:h-full md:overflow-y-auto md:overflow-x-hidden md:flex-col md:justify-between md:p-4 md:border-r md:border-t-0 md:bg-transparent md:backdrop-blur-none flex-shrink-0">
+        <aside className="left-sidebar fixed bottom-0 left-0 right-0 z-50 h-[58px] w-full border-t border-border-dark bg-black/95 backdrop-blur-lg flex flex-row items-center justify-around px-2 md:static md:z-auto md:w-[78px] xl:w-[275px] 2xl:w-[290px] md:h-full md:overflow-y-auto md:overflow-x-hidden md:flex-col md:justify-between md:p-4 md:border-r md:border-t-0 md:bg-transparent md:backdrop-blur-none flex-shrink-0">
             <div className="w-full flex md:flex-col items-center xl:items-start justify-around md:justify-start">
                 {/* Brand Logo with Circular Badge */}
                 <NavLink

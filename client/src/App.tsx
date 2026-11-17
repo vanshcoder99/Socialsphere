@@ -27,7 +27,7 @@ const MainLayout: React.FC = () => {
     const navigate = useNavigate();
 
     return (
-        <div className={`${isMessagesPage ? "messages-app-layout" : "app-container"} flex justify-center w-full min-h-screen md:h-screen md:h-dvh ${isMessagesPage ? "max-w-none pb-0" : "max-w-[1280px] mx-auto pb-16"} md:overflow-hidden md:pb-0`}>
+        <div className={`${isMessagesPage ? "messages-app-layout" : "app-container"} flex w-full min-h-screen md:h-screen md:h-dvh max-w-none pb-16 md:overflow-hidden md:pb-0`}>
             {/* Left Navigational Rail */}
             <Sidebar onOpenPremiumModal={() => navigate("/plans")} />
 

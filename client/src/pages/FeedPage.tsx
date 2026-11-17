@@ -143,7 +143,7 @@ export const FeedPage: React.FC = () => {
     };
 
     return (
-        <main className="center-column w-full md:w-[630px] min-h-screen md:min-h-0 md:h-full md:overflow-y-auto md:overflow-x-hidden relative border-r border-border-dark flex-shrink-0 md:scroll-smooth">
+        <main className="center-column flex-1 min-w-0 w-full min-h-screen md:min-h-0 md:h-full md:overflow-y-auto md:overflow-x-hidden relative border-r border-border-dark md:scroll-smooth">
             {/* Header with For You / Following tabs */}
             <div className="feed-header sticky top-0 z-30 bg-black/90 backdrop-blur-md border-b border-border-dark w-full">
                 {/* Mobile Top Header (Visible on < 768px, Reference 3) */}

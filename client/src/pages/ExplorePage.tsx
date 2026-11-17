@@ -132,7 +132,7 @@ export const ExplorePage: React.FC = () => {
     };
 
     return (
-        <main className="center-column w-full md:w-[630px] min-h-screen md:min-h-0 md:h-full md:overflow-y-auto md:overflow-x-hidden relative border-r border-border-dark flex-shrink-0 md:scroll-smooth">
+        <main className="center-column flex-1 min-w-0 w-full min-h-screen md:min-h-0 md:h-full md:overflow-y-auto md:overflow-x-hidden relative border-r border-border-dark md:scroll-smooth">
             {/* Search Header */}
             <div className="sticky top-0 z-20 bg-black/90 backdrop-blur-md border-b border-border-dark p-3">
                 <form onSubmit={handleSearchSubmit}>

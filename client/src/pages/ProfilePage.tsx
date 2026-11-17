@@ -243,7 +243,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenPremiumModal }) 
 
     if (loading) {
         return (
-            <main className="center-column w-full md:w-[630px] min-h-screen md:min-h-0 md:h-full md:overflow-y-auto md:overflow-x-hidden relative border-r border-border-dark flex-shrink-0 md:scroll-smooth flex justify-center py-16">
+            <main className="center-column flex-1 min-w-0 w-full min-h-screen md:min-h-0 md:h-full md:overflow-y-auto md:overflow-x-hidden relative border-r border-border-dark md:scroll-smooth flex justify-center py-16">
                 <Loader2 size={32} className="animate-spin text-accent-blue" />
             </main>
         );
@@ -251,7 +251,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenPremiumModal }) 
 
     if (!profile) {
         return (
-            <main className="center-column w-full md:w-[630px] min-h-screen md:min-h-0 md:h-full md:overflow-y-auto md:overflow-x-hidden relative border-r border-border-dark flex-shrink-0 md:scroll-smooth py-16 px-5 text-center">
+            <main className="center-column flex-1 min-w-0 w-full min-h-screen md:min-h-0 md:h-full md:overflow-y-auto md:overflow-x-hidden relative border-r border-border-dark md:scroll-smooth py-16 px-5 text-center">
                 <h2 className="text-xl font-bold text-white">This account does not exist</h2>
                 <p className="text-text-secondary text-sm mt-2">Try searching for another user.</p>
             </main>
@@ -259,7 +259,7 @@ export const ProfilePage: React.FC<ProfilePageProps> = ({ onOpenPremiumModal }) 
     }
 
     return (
-        <main className="center-column w-full md:w-[630px] min-h-screen md:min-h-0 md:h-full md:overflow-y-auto md:overflow-x-hidden relative border-r border-border-dark flex-shrink-0 md:scroll-smooth">
+        <main className="center-column flex-1 min-w-0 w-full min-h-screen md:min-h-0 md:h-full md:overflow-y-auto md:overflow-x-hidden relative border-r border-border-dark md:scroll-smooth">
             {/* Header with back button */}
             <div className="sticky top-0 z-20 bg-black/90 backdrop-blur-md border-b border-border-dark px-4 py-2.5 flex items-center gap-6">
                 <button

@@ -11,7 +11,7 @@ const faqs = [
 ];
 
 export const HelpCenterPage = () => <main className="flex h-full min-w-0 flex-1 flex-col overflow-y-auto border-x border-border-dark bg-black px-4 py-6 sm:px-7 lg:px-10">
-    <div className="mx-auto w-full max-w-4xl">
+    <div className="mx-auto w-full max-w-6xl">
         <header className="mb-7 border-b border-border-dark pb-5">
             <div className="flex items-center gap-2 text-sm font-semibold text-accent-blue"><BookOpen size={18} /> SocialSphere Help Center</div>
             <h1 className="mt-2 text-3xl font-extrabold text-white">How can we help?</h1>
